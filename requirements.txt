@@ -1,0 +1,2 @@
+# Single supported runtime: FastAPI backend and React frontend.
+-r backend/requirements.txt

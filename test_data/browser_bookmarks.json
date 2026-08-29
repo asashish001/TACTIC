@@ -1,0 +1,92 @@
+{
+  "checksum": "abc123",
+  "roots": {
+    "bookmark_bar": {
+      "children": [
+        {
+          "date_added": "13365000000000000",
+          "date_last_used": "0",
+          "date_modified": "0",
+          "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0001",
+          "id": "1",
+          "name": "Security Dashboard",
+          "type": "url",
+          "url": "https://internal-dashboard.example.com/security"
+        },
+        {
+          "date_added": "13366000000000000",
+          "date_last_used": "0",
+          "date_modified": "0",
+          "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0002",
+          "id": "2",
+          "name": "Threat Intelligence Feed",
+          "type": "url",
+          "url": "https://threatintel.example.com/feed/latest"
+        },
+        {
+          "children": [
+            {
+              "date_added": "13367000000000000",
+              "date_last_used": "0",
+              "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0003",
+              "id": "3",
+              "name": "Suspicious C2 Domain",
+              "type": "url",
+              "url": "https://cdn-sync-node.net/panel"
+            },
+            {
+              "date_added": "13368000000000000",
+              "date_last_used": "0",
+              "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0004",
+              "id": "4",
+              "name": "Paste Site Exfiltration",
+              "type": "url",
+              "url": "https://paste.example.com/raw/abc123"
+            }
+          ],
+          "date_added": "13367000000000000",
+          "date_modified": "13368000000000000",
+          "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0005",
+          "id": "5",
+          "name": "Investigation Links",
+          "type": "folder"
+        }
+      ],
+      "date_added": "13365000000000000",
+      "date_modified": "13368000000000000",
+      "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0006",
+      "id": "6",
+      "name": "Bookmarks Bar",
+      "type": "folder"
+    },
+    "other": {
+      "children": [
+        {
+          "date_added": "13369000000000000",
+          "date_last_used": "0",
+          "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0007",
+          "id": "7",
+          "name": "Credential Leak Check",
+          "type": "url",
+          "url": "https://haveibeenpwned.com/account"
+        }
+      ],
+      "date_added": "13369000000000000",
+      "date_modified": "0",
+      "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0008",
+      "id": "8",
+      "name": "Other Bookmarks",
+      "type": "folder"
+    },
+    "synced": {
+      "children": [],
+      "date_added": "13365000000000000",
+      "date_modified": "0",
+      "guid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0009",
+      "id": "9",
+      "name": "Mobile Bookmarks",
+      "type": "folder"
+    }
+  },
+  "version": 1
+}

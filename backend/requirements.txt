@@ -1,0 +1,32 @@
+# ── Version Policy ────────────────────────────────────────────
+# All dependencies use >= (minimum) pins to allow automatic
+# security patches. Exact reproducible builds are achieved via
+# pip-compile or CI lockfiles — do NOT pin to exact versions here.
+#
+# Auditing:
+#   pip install pip-audit && pip-audit
+#   ./scripts/audit-deps.sh
+#
+# Dependabot creates weekly PRs for outdated/vulnerable packages.
+# ─────────────────────────────────────────────────────────────
+fastapi>=0.110.0
+slowapi>=0.1.9
+uvicorn[standard]>=0.28.0
+sqlalchemy>=2.0.0
+python-multipart>=0.0.9
+python-jose[cryptography]>=3.3.0
+pydantic>=2.6.0
+python-dotenv>=1.0.0
+pandas>=2.2.0
+numpy>=1.26.0
+opencv-python-headless>=4.9.0
+pillow>=10.2.0
+reportlab>=4.1.0
+python-docx>=1.1.0
+matplotlib>=3.8.0
+scikit-learn>=1.4.0
+torch>=2.2.0
+transformers>=4.38.0
+exifread>=3.0.0
+python-evtx>=0.7.4
+PyPDF2>=3.0.1

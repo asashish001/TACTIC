@@ -1,0 +1,39 @@
+# Dependabot configuration — keeps Python dependencies up-to-date
+# and flags security vulnerabilities automatically.
+version: 2
+
+updates:
+  # ── Python (pip) dependencies ──
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers: []
+    labels:
+      - "dependencies"
+      - "python"
+    # Group minor/patch updates into a single PR to reduce noise
+    groups:
+      production:
+        patterns: ["*"]
+        update-types:
+          - "minor"
+          - "patch"
+    # Let major updates through individually so they get reviewed
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  # ── GitHub Actions ──
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"
