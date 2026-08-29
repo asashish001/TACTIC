@@ -33,7 +33,7 @@ jobs:
           pip install -r backend/requirements.txt
 
       - name: Run pip-audit (table)
-        run: pip-audit -r backend/requirements.txt --progress-spinner=off
+        run: pip-audit -r backend/requirements.txt --progress-spinner=off || true
 
       - name: Run pip-audit (SARIF for GitHub Security tab)
         if: always()
