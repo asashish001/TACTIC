@@ -25,14 +25,14 @@ echo ""
 
 if [ "${1:-}" = "--fix" ]; then
     echo "[*] Attempting to upgrade vulnerable packages..."
-    pip-audit --require-hashes=false --progress-spinner=off \
+    pip-audit -r backend/requirements.txt --progress-spinner=off \
         --fix --dry-run 2>&1 || true
     echo ""
     echo "[*] Run without --dry-run to apply upgrades."
 elif [ "${1:-}" = "--json" ]; then
-    pip-audit --require-hashes=false --format json --progress-spinner=off
+    pip-audit -r backend/requirements.txt --format json --progress-spinner=off
 else
-    pip-audit --require-hashes=false --progress-spinner=off
+    pip-audit -r backend/requirements.txt --progress-spinner=off
 fi
 
 EXIT_CODE=$?

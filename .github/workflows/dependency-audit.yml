@@ -33,13 +33,13 @@ jobs:
           pip install -r backend/requirements.txt
 
       - name: Run pip-audit (table)
-        run: pip-audit --require-hashes=false --progress-spinner=off
+        run: pip-audit -r backend/requirements.txt --progress-spinner=off
 
       - name: Run pip-audit (SARIF for GitHub Security tab)
         if: always()
         continue-on-error: true
         run: |
-          pip-audit --format sarif --output audit-results.sarif --progress-spinner=off || true
+          pip-audit -r backend/requirements.txt --format sarif --output audit-results.sarif --progress-spinner=off || true
 
       - name: Upload SARIF to GitHub Security
         if: always()
