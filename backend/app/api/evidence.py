@@ -265,3 +265,46 @@ def list_evidence(request: Request,
         page_size=page_size,
         total_pages=total_pages,
     )
+
+
+@router.get("/download/{evidence_id}")
+@limiter.limit(RATE_LIMIT_READ)
+def download_evidence(request: Request,
+    evidence_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Download an evidence file with authentication and case access verification."""
+    from fastapi.responses import FileResponse
+
+    evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    if not evidence:
+        raise HTTPException(status_code=404, detail="Evidence not found.")
+
+    case = db.query(Case).filter(Case.id == evidence.case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    require_case_access(case, current_user)
+
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    file_path = (base_dir / "app" / "uploads" / evidence.stored_path).resolve()
+
+    # Traversal escape verification
+    uploads_root = (base_dir / "app" / "uploads").resolve()
+    if uploads_root not in file_path.parents or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Evidence file could not be located on disk.")
+
+    record_audit(
+        db, "evidence_downloaded",
+        f"Downloaded evidence '{evidence.filename}'.",
+        actor_id=current_user.id,
+        case_id=evidence.case_id,
+        evidence_id=evidence.id,
+    )
+    db.commit()
+
+    return FileResponse(
+        path=file_path,
+        media_type="application/octet-stream",
+        filename=evidence.filename,
+    )

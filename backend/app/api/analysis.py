@@ -1,9 +1,10 @@
 from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.models.case import Case
 from app.models.evidence import Evidence
 from app.models.finding import Finding
 from app.models.user import User
@@ -21,8 +22,15 @@ router = APIRouter(prefix="/api/analyze", tags=["AI Analysis Engine"])
 
 
 class AnalysisRequest(BaseModel):
-    evidence_id: int = Field(...)
+    evidence_id: int | None = None
+    case_id: int | None = None
     sync: bool = Field(default=False) # Set sync=True for synchronous blocking execution (e.g., tests)
+
+    @model_validator(mode="after")
+    def require_at_least_one(self):
+        if self.evidence_id is None and self.case_id is None:
+            raise ValueError("At least one of 'evidence_id' or 'case_id' must be provided.")
+        return self
 
 
 class JobQueuedResponse(BaseModel):
@@ -31,6 +39,13 @@ class JobQueuedResponse(BaseModel):
     message: str = "Forensic analysis job queued in background."
     current_stage: str = "upload"
     progress_percent: float = 10.0
+
+
+class BatchJobQueuedResponse(BaseModel):
+    """Response when multiple evidence items are queued for analysis via case_id."""
+    jobs: list[JobQueuedResponse]
+    total_queued: int
+    message: str = "Forensic analysis jobs queued in background."
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
@@ -42,16 +57,34 @@ def trigger_analysis(request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(RoleChecker(["admin", "investigator"]))
 ):
-    """Trigger non-blocking asynchronous background forensic analysis job, returning immediately with job_id."""
-    evidence = db.query(Evidence).filter(Evidence.id == payload.evidence_id).first()
-    if not evidence:
-        raise HTTPException(status_code=404, detail="Evidence not found.")
-    require_case_access(evidence.case, current_user)
+    """Trigger non-blocking asynchronous background forensic analysis job, returning immediately with job_id.
+    
+    Accepts either `evidence_id` (single evidence) or `case_id` (all evidence in case).
+    """
+    # Resolve evidence items to analyze
+    if payload.evidence_id is not None:
+        # Single evidence mode (original behavior)
+        evidence = db.query(Evidence).filter(Evidence.id == payload.evidence_id).first()
+        if not evidence:
+            raise HTTPException(status_code=404, detail="Evidence not found.")
+        require_case_access(evidence.case, current_user)
+        evidence_items = [evidence]
+        resolved_case_id = evidence.case_id
+    else:
+        # Case-level mode: analyze all evidence in the case
+        case = db.query(Case).filter(Case.id == payload.case_id).first()
+        if not case:
+            raise HTTPException(status_code=404, detail="Case not found.")
+        require_case_access(case, current_user)
+        evidence_items = db.query(Evidence).filter(Evidence.case_id == payload.case_id).all()
+        if not evidence_items:
+            raise HTTPException(status_code=400, detail="No evidence files found in this case. Upload evidence first.")
+        resolved_case_id = case.id
 
     # 1. If payload.sync is True, execute synchronously for compatibility with tests / CLI
     if payload.sync:
         response.status_code = status.HTTP_201_CREATED
-        case_evidence = db.query(Evidence).filter(Evidence.case_id == evidence.case_id).all()
+        case_evidence = db.query(Evidence).filter(Evidence.case_id == resolved_case_id).all()
         integrity_report = verify_case_evidence_integrity(db, case_evidence, actor_id=current_user.id)
         integrity_report.record_report(db, actor_id=current_user.id)
         db.commit()
@@ -64,37 +97,51 @@ def trigger_analysis(request: Request,
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Integrity verification failed for {integrity_report.failed_count} evidence file(s): {failed_details}."
             )
-        file_absolute_path = evidence_disk_path(evidence)
-        db.query(Finding).filter(Finding.evidence_id == evidence.id).delete()
 
-        try:
-            from app.ai.risk_analyzer import run_risk_analysis
-            from app.services.artifact_extraction import extract_and_store_artifacts
-            findings = run_risk_analysis(evidence, file_absolute_path, db=db)
-            for finding in findings:
-                db.add(finding)
-            extract_and_store_artifacts(evidence, db)
-            db.commit()
-            for f in findings:
-                db.refresh(f)
-            return [FindingResponse.model_validate(f) for f in findings]
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Analysis engine execution failed: {str(e)}"
-            )
+        all_findings = []
+        for ev in evidence_items:
+            file_absolute_path = evidence_disk_path(ev)
+            db.query(Finding).filter(Finding.evidence_id == ev.id).delete()
+            try:
+                from app.ai.risk_analyzer import run_risk_analysis
+                from app.services.artifact_extraction import extract_and_store_artifacts
+                findings = run_risk_analysis(ev, file_absolute_path, db=db)
+                for finding in findings:
+                    db.add(finding)
+                extract_and_store_artifacts(ev, db)
+                db.commit()
+                for f in findings:
+                    db.refresh(f)
+                all_findings.extend(findings)
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Analysis engine execution failed: {str(e)}"
+                )
+        return [FindingResponse.model_validate(f) for f in all_findings]
 
-    # 2. Default: Create job and launch background pipeline asynchronously
-    job = create_job(db, case_id=evidence.case_id, evidence_id=evidence.id, job_type="ANALYSIS_PIPELINE")
-    background_tasks.add_task(execute_job_pipeline, job.id, current_user.id)
+    # 2. Default: Create job(s) and launch background pipeline asynchronously
+    queued_jobs = []
+    for ev in evidence_items:
+        job = create_job(db, case_id=resolved_case_id, evidence_id=ev.id, job_type="ANALYSIS_PIPELINE")
+        background_tasks.add_task(execute_job_pipeline, job.id, current_user.id)
+        queued_jobs.append(JobQueuedResponse(
+            job_id=job.id,
+            status="QUEUED",
+            message=f"Forensic analysis job queued for evidence '{ev.filename}'.",
+            current_stage="upload",
+            progress_percent=10.0
+        ))
 
-    return JobQueuedResponse(
-        job_id=job.id,
-        status="QUEUED",
-        message="Forensic analysis job queued in background.",
-        current_stage="upload",
-        progress_percent=10.0
+    # For single-evidence requests, return the original response shape for backward compatibility
+    if payload.evidence_id is not None and len(queued_jobs) == 1:
+        return queued_jobs[0]
+
+    return BatchJobQueuedResponse(
+        jobs=queued_jobs,
+        total_queued=len(queued_jobs),
+        message=f"{len(queued_jobs)} forensic analysis job(s) queued in background."
     )
 
 # ── Human-in-the-Loop: Finding Review Endpoints ──

@@ -24,3 +24,4 @@ class ExtractedArtifact(Base):
     extracted_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
     evidence = relationship("Evidence", back_populates="extracted_artifacts")
+    case = relationship("Case", back_populates="extracted_artifacts")

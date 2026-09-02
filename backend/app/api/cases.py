@@ -164,10 +164,7 @@ def delete_case(request: Request,
     require_case_access(case, current_user)
     
     # 1. Delete database records FIRST so a file deletion failure doesn't
-    #    leave orphaned DB rows. Commit immediately so the database state
-    #    is durable even if the subsequent file cleanup crashes.
-    db.query(VulnerabilityMatch).filter(VulnerabilityMatch.case_id == case_id).delete()
-    db.query(ThreatIntelIndicator).filter(ThreatIntelIndicator.case_id == case_id).delete()
+    #    leave orphaned DB rows. Model cascade deletes all child records cleanly.
     db.delete(case)
     db.commit()
     

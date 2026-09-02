@@ -62,44 +62,53 @@ class NLPArtifactExtractor:
                 self.pipeline = None
                 return
 
-        try:
-            import transformers
-            from transformers import pipeline
-            
-            # Try loading from local cache first for instant startup
             try:
-                self.pipeline = pipeline(
-                    "token-classification",
-                    model=self.model_name,
-                    tokenizer=self.model_name,
-                    aggregation_strategy="simple",
-                    model_kwargs={"local_files_only": True}
-                )
+                import transformers
+                from transformers import pipeline
+                
+                # Try loading from local cache first for instant startup
+                try:
+                    self.pipeline = pipeline(
+                        "token-classification",
+                        model=self.model_name,
+                        tokenizer=self.model_name,
+                        aggregation_strategy="simple",
+                        model_kwargs={"local_files_only": True}
+                    )
+                    self.loaded = True
+                    self.error_state = None
+                    logger.info("Loaded Hugging Face Transformer model '%s' from local cache.", self.model_name)
+                    return
+                except Exception as exc:
+                    logger.debug("Transformer model not found in local cache: %s", exc)
+
+                # If not in cache and network download is enabled, try loading with model pipeline
+                if os.getenv("HF_HUB_OFFLINE", "0") == "1" or os.getenv("TRANSFORMERS_OFFLINE", "0") == "1":
+                    raise RuntimeError("Hugging Face Hub is set to offline mode.")
+
+                import concurrent.futures
+
+                def _load():
+                    return pipeline(
+                        "token-classification",
+                        model=self.model_name,
+                        tokenizer=self.model_name,
+                        aggregation_strategy="simple"
+                    )
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(_load)
+                    # 10 second strict network timeout
+                    self.pipeline = future.result(timeout=10.0)
+
                 self.loaded = True
                 self.error_state = None
-                logger.info("Loaded Hugging Face Transformer model '%s' from local cache.", self.model_name)
-                return
+                logger.info("Loaded Hugging Face Transformer model '%s' successfully.", self.model_name)
             except Exception as exc:
-                logger.debug("Transformer model not found in local cache: %s", exc)
-
-            # If not in cache and network download is enabled, try loading with model pipeline
-            if os.getenv("HF_HUB_OFFLINE", "0") == "1" or os.getenv("TRANSFORMERS_OFFLINE", "0") == "1":
-                raise RuntimeError("Hugging Face Hub is set to offline mode.")
-
-            self.pipeline = pipeline(
-                "token-classification",
-                model=self.model_name,
-                tokenizer=self.model_name,
-                aggregation_strategy="simple"
-            )
-            self.loaded = True
-            self.error_state = None
-            logger.info("Loaded Hugging Face Transformer model '%s' successfully.", self.model_name)
-        except Exception as exc:
-            self.loaded = False
-            self.error_state = f"Model load failed: {str(exc)}"
-            self.pipeline = None
-            logger.warning("Transformer model initialization fallback activated: %s", exc)
+                self.loaded = False
+                self.error_state = f"Model load failed: {str(exc)}"
+                self.pipeline = None
+                logger.warning("Transformer model initialization fallback activated: %s", exc)
 
     def get_status(self) -> dict[str, Any]:
         """Return model metadata, loading status, and error state."""

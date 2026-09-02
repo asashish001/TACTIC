@@ -28,4 +28,4 @@ class ArtifactCorrelation(Base):
     timestamp = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
-    case = relationship("Case", backref="correlations")
+    case = relationship("Case", back_populates="correlations")

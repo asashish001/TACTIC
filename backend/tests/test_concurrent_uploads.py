@@ -94,6 +94,7 @@ class TestConcurrentUploads:
             headers=admin_headers,
         )
         assert resp.status_code == 200
-        evidence = resp.json()
-        matching = [e for e in evidence if e["sha256"]]
+        data = resp.json()
+        items = data.get("items", data) if isinstance(data, dict) else data
+        matching = [e for e in items if e.get("sha256")]
         assert len(matching) >= 1, "At least one evidence record should exist"

@@ -28,7 +28,7 @@ class VulnerabilityMatch(Base):
     source_data = Column(JSON, nullable=False, default=dict)
     matched_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
-    case = relationship("Case")
+    case = relationship("Case", back_populates="vulnerability_matches")
     evidence = relationship("Evidence")
 
 
@@ -48,5 +48,5 @@ class ThreatIntelIndicator(Base):
     details = Column(JSON, nullable=False, default=dict)
     last_checked = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
 
-    case = relationship("Case")
+    case = relationship("Case", back_populates="threat_intel_indicators")
     evidence = relationship("Evidence")

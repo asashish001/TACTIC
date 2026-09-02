@@ -16,6 +16,11 @@ import sys
 from pathlib import Path
 from typing import Generator
 
+# Ensure tests run with offline model fallback and no hanging downloads
+os.environ.setdefault("NLP_MODEL_NAME", "fallback")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

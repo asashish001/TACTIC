@@ -8,9 +8,10 @@ import subprocess
 import sys
 import time
 import uuid
+import pytest
 
 BASE_URL = os.getenv("AIDFA_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def api_is_ready() -> bool:
@@ -80,6 +81,8 @@ def make_request(url, data=None, headers=None, method="GET"):
         except json.JSONDecodeError:
             return err_data, e.code
 
+
+@pytest.mark.integration
 def test_suite():
     print("==================================================")
     print("AIDFA API COMPREHENSIVE INTEGRATION TEST SUITE")

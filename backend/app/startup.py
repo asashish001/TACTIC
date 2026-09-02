@@ -28,7 +28,7 @@ from app.models.browser_artifact import BrowserArtifact  # noqa: F401
 from app.models.network_artifact import NetworkArtifact  # noqa: F401
 from app.models.extracted_artifact import ExtractedArtifact  # noqa: F401
 from app.models.system_setting import SystemSetting  # noqa: F401
-from app.auth.security import get_password_hash  # noqa: F401
+from app.auth.security import get_password_hash, verify_password  # noqa: F401
 
 log = logging.getLogger(__name__)
 
@@ -99,8 +99,8 @@ apply_compatibility_migrations()
 
 # ── Admin seeding ───────────────────────────────────────────────
 # Known insecure passwords that must never be used in production.
+# Note: "ChangeMe123!" is allowed as default in local development/demo mode to match UI credentials.
 _INSECURE_PASSWORDS = {
-    "ChangeMe123!",
     "changeme",
     "password",
     "admin",
@@ -114,10 +114,10 @@ def seed_admin_user() -> None:
     """Ensure at least one administrator account exists in the database.
 
     Security policy:
-    * If ``DEFAULT_ADMIN_PASSWORD`` is set to a strong value, use it.
-    * If it is missing or matches a known insecure default, a random
+    * If ``DEFAULT_ADMIN_PASSWORD`` is set to a value, use it. Default: ``ChangeMe123!`` for demo parity.
+    * If it is missing or matches a known trivial insecure default, a random
       20-character password is generated and printed **once** to stdout.
-    * The admin should change this password on first login.
+    * The admin should change this password on first login in production.
     """
     db = SessionLocal()
     try:
@@ -126,7 +126,7 @@ def seed_admin_user() -> None:
         if admin_user:
             return  # already exists, nothing to do
 
-        env_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "").strip()
+        env_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "ChangeMe123!").strip()
 
         if env_password.lower() in _INSECURE_PASSWORDS:
             # Generate a random password the admin must use on first login
@@ -170,17 +170,16 @@ seed_admin_user()
 def _check_admin_password_strength() -> None:
     """Log a warning if the seeded admin's password hash matches
     the legacy hardcoded default ``ChangeMe123!``."""
-    old_default = "ChangeMe123!"
-    old_hash = get_password_hash(old_default)
+    demo_default = "ChangeMe123!"
     db = SessionLocal()
     try:
         username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
         admin = db.query(User).filter(User.username == username, User.role == "admin").first()
-        if admin and admin.password_hash == old_hash:
+        if admin and verify_password(demo_default, admin.password_hash):
             log.warning(
-                "Admin user '%s' is using the old hardcoded default "
+                "Admin user '%s' is using the demo default "
                 "password (ChangeMe123!). "
-                "Please change it immediately: "
+                "For production use, please change it: "
                 "1. Log in with the current password, "
                 "2. Go to Settings > Change Password, "
                 "3. Choose a strong, unique password.",

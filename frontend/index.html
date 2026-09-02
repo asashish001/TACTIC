@@ -1170,6 +1170,7 @@ function showView(id) {
   if (id === 'modelEval') loadEvaluationRuns();
   if (id === 'suspicious') loadSuspiciousEvents();
   if (id === 'processing') loadProcessingJobs();
+  if (id === 'artifactTable') { loadArtifactDropdowns(); loadFilteredArtifacts(); }
 }
 document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { showView(b.dataset.view); closeMobileMenu(); });
 
@@ -1261,6 +1262,11 @@ function onCaseChange(id) {
   document.getElementById('caseMeta').textContent = c ? `${c.case_number} · ${c.status.toUpperCase()}` : 'No active case pinned';
   loadDashboard();
   loadIntakeRecent();
+  // Refresh artifact dropdowns if the artifact table view is active
+  if (document.getElementById('artifactTable') && document.getElementById('artifactTable').classList.contains('active')) {
+    loadArtifactDropdowns();
+    loadFilteredArtifacts();
+  }
 }
 
 function toggleCreateCase() {
@@ -1425,9 +1431,10 @@ async function loadIntakeRecent() {
   if (!S.activeCaseId) return;
   try {
     const ev = await api('GET', `/api/evidence?case_id=${S.activeCaseId}`);
+    const items = ev.items || ev || [];
     const tb = document.getElementById('intakeRecent');
-    if (ev.length) {
-      tb.innerHTML = ev.slice(0, 6).map(e => `<tr>
+    if (items.length) {
+      tb.innerHTML = items.slice(0, 6).map(e => `<tr>
         <td>${esc(e.filename)}</td>
         <td style="color:var(--muted);font-size:10px">${esc((e.sha256||'').substring(0, 16))}…</td>
       </tr>`).join('');
@@ -1470,6 +1477,7 @@ async function runAnalysis() {
     const res = await api('POST', '/api/analyze', { case_id: S.activeCaseId });
     st.innerHTML = `<span style="color:var(--green)">✓ Analysis complete.</span>`;
     await loadAnalysisResults();
+    loadProcessingJobs();
   } catch (e) {
     st.innerHTML = `<span style="color:var(--red)">✗ ${esc(friendlyAnalysisError(e))}</span>`;
   } finally { btn.disabled = false; }
@@ -1778,7 +1786,7 @@ async function loadReports() {
         <td><span class="tag">${esc((r.format || '').toUpperCase())}</span></td>
         <td style="color:var(--muted)">${esc(r.generated_at || '—')}</td>
         <td style="white-space:nowrap">
-          <a href="/api/report/download/${r.id}" target="_blank" style="color:var(--cyan);font-weight:700;margin-right:10px">DOWNLOAD</a>
+          <a onclick="downloadReport(${r.id}, '${esc(r.filename).replace(/'/g, "\\'")}'" style="color:var(--cyan);cursor:pointer;font-weight:700;margin-right:10px">DOWNLOAD</a>
           ${r.format === 'pdf' ? `<a onclick="previewReport(${r.id},'pdf')" style="color:var(--green);cursor:pointer;font-weight:700;font-size:10px">PREVIEW</a>` : ''}
         </td>
       </tr>`).join('');
@@ -1870,7 +1878,8 @@ async function runDecryptAnalysis() {
   st.innerHTML = '<span class="spinner"></span> Analyzing evidence encryption patterns…';
 
   try {
-    var evidence = await api('GET', '/api/evidence?case_id=' + caseId);
+    var evidenceRaw = await api('GET', '/api/evidence?case_id=' + caseId);
+    var evidence = evidenceRaw.items || evidenceRaw || [];
     var con = document.getElementById('decryptConsole');
     var res = document.getElementById('decryptResults');
 
@@ -2175,21 +2184,56 @@ function downloadBlob(blob, name) {
   setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
 }
 
-// ── Evidence Download ──
-function downloadEvidence(evidenceId, filename) {
-  window.open('/api/evidence/download/' + evidenceId, '_blank');
-  notify('Downloading ' + filename);
+// ── Evidence Download (authenticated blob) ──
+async function downloadEvidence(evidenceId, filename) {
+  try {
+    const res = await fetch('/api/evidence/download/' + evidenceId, {
+      headers: { 'Authorization': 'Bearer ' + S.token }
+    });
+    if (!res.ok) { notifyError('Download failed: ' + res.statusText); return; }
+    const blob = await res.blob();
+    downloadBlob(blob, filename || 'evidence_' + evidenceId);
+    notify('Downloaded ' + (filename || 'evidence'));
+  } catch (e) {
+    notifyError('Download failed: ' + (e.message || 'Network error'));
+  }
 }
 
-// ── Report Preview ──
-function previewReport(reportId, format) {
+// ── Report Download (authenticated blob) ──
+async function downloadReport(reportId, filename) {
+  try {
+    const res = await fetch('/api/report/download/' + reportId, {
+      headers: { 'Authorization': 'Bearer ' + S.token }
+    });
+    if (!res.ok) { notifyError('Download failed: ' + res.statusText); return; }
+    const blob = await res.blob();
+    downloadBlob(blob, filename || 'report_' + reportId);
+    notify('Downloaded ' + (filename || 'report'));
+  } catch (e) {
+    notifyError('Download failed: ' + (e.message || 'Network error'));
+  }
+}
+
+// ── Report Preview (authenticated blob) ──
+async function previewReport(reportId, format) {
   var box = document.getElementById('reportPreviewBox');
   var content = document.getElementById('reportPreviewContent');
   box.style.display = '';
-  if (format === 'pdf') {
-    content.innerHTML = '<iframe src="/api/report/download/' + reportId + '" style="width:100%;height:500px;border:none"></iframe>';
-  } else {
-    content.innerHTML = '<div style="padding:20px;color:#142132;font-family:Georgia,serif"><p>DOCX preview — <a href="/api/report/download/' + reportId + '" target="_blank" style="color:#1c4f77">click to download</a></p></div>';
+  content.innerHTML = '<span class="spinner"></span> Loading preview…';
+  try {
+    const res = await fetch('/api/report/download/' + reportId, {
+      headers: { 'Authorization': 'Bearer ' + S.token }
+    });
+    if (!res.ok) { content.innerHTML = '<p style="color:var(--red)">Preview failed: ' + res.statusText + '</p>'; return; }
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    if (format === 'pdf') {
+      content.innerHTML = '<iframe src="' + blobUrl + '" style="width:100%;height:500px;border:none"></iframe>';
+    } else {
+      content.innerHTML = '<div style="padding:20px;color:#142132;font-family:Georgia,serif"><p>DOCX preview — <a onclick="downloadReport(' + reportId + ')" style="color:#1c4f77;cursor:pointer">click to download</a></p></div>';
+    }
+  } catch (e) {
+    content.innerHTML = '<p style="color:var(--red)">Preview failed: ' + (e.message || 'Network error') + '</p>';
   }
 }
 
@@ -2378,9 +2422,9 @@ async function loadReviewSummary() {
       
       let actions = '';
       if (f.review_status === 'pending') {
-        actions = '<button class="btn" onclick="reviewFinding(' + f.id + ', "approved")" style="font-size:10px;padding:4px 8px;border-color:#4ee2a4;color:#4ee2a4">✓ Approve</button> ' +
-          '<button class="btn" onclick="reviewFinding(' + f.id + ', "rejected")" style="font-size:10px;padding:4px 8px;border-color:#ff6077;color:#ff6077">✗ Reject</button> ' +
-          '<button class="btn" onclick="reviewFinding(' + f.id + ', "escalated")" style="font-size:10px;padding:4px 8px;border-color:#a855f7;color:#a855f7">⚠ Escalate</button>';
+        actions = '<button class="btn" onclick="reviewFinding(' + f.id + ', &#39;approved&#39;)" style="font-size:10px;padding:4px 8px;border-color:#4ee2a4;color:#4ee2a4">✓ Approve</button> ' +
+          '<button class="btn" onclick="reviewFinding(' + f.id + ', &#39;rejected&#39;)" style="font-size:10px;padding:4px 8px;border-color:#ff6077;color:#ff6077">✗ Reject</button> ' +
+          '<button class="btn" onclick="reviewFinding(' + f.id + ', &#39;escalated&#39;)" style="font-size:10px;padding:4px 8px;border-color:#a855f7;color:#a855f7">⚠ Escalate</button>';
       } else {
         actions = '<span style="color:var(--muted);font-size:10px">Reviewed</span>';
       }

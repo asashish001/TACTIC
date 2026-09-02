@@ -36,6 +36,8 @@ class ChainOfCustody(Base):
     occurred_at = Column(DateTime, default=utcnow, nullable=False, index=True)
     details = Column(JSON, nullable=False, default=dict)
 
+    case = relationship("Case", back_populates="chain_of_custody")
+
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -48,6 +50,8 @@ class AuditLog(Base):
     description = Column(Text, nullable=False)
     occurred_at = Column(DateTime, default=utcnow, nullable=False, index=True)
     details = Column(JSON, nullable=False, default=dict)
+
+    case = relationship("Case", back_populates="audit_logs")
 
 
 class TimelineEvent(Base):
@@ -63,3 +67,5 @@ class TimelineEvent(Base):
     event_type = Column(String(60), nullable=False, default="derived")
     details = Column(JSON, nullable=False, default=dict)
     generated_at = Column(DateTime, default=utcnow, nullable=False)
+
+    case = relationship("Case", back_populates="timeline_events")

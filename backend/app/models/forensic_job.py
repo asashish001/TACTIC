@@ -26,5 +26,5 @@ class ForensicJob(Base):
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
 
-    case = relationship("Case", backref="forensic_jobs")
+    case = relationship("Case", back_populates="forensic_jobs")
     evidence = relationship("Evidence", backref="forensic_jobs")

@@ -3,7 +3,7 @@
 .env.local
 *.env
 
-# Python
+# Python & testing
 __pycache__/
 *.py[cod]
 *$py.class
@@ -21,20 +21,12 @@ ENV/
 *.db
 *.db-journal
 *.sqlite3
-database/*.db
-backend/tactic.db
+backend/app/database/*.db
+backend/app/database/*.db-journal
 
-# Uploads & Evidence
-uploads/*
-!uploads/.gitkeep
+# Evidence uploads & generated reports
 backend/app/uploads/*
 !backend/app/uploads/.gitkeep
-backend/storage/*
-!backend/storage/.gitkeep
-
-# Generated Reports
-reports/*
-!reports/.gitkeep
 backend/app/reports/*
 !backend/app/reports/.gitkeep
 
