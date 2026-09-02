@@ -1,4 +1,4 @@
-# AI Digital Forensics Assistant (AIDFA)
+# AI Digital Forensics Assistant (TACTIC)
 
 An AI-powered digital forensics investigation web application designed to help investigators, students, and cybersecurity professionals automate evidence upload, extract metadata, detect anomalous log entries, reconstruct chronological timelines, correlate entities (IPs, emails, usernames, hashes), and compile publication-quality forensic audit reports.
 
