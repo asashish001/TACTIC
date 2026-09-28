@@ -128,34 +128,34 @@ If, at any milestone, the corresponding bullet list in Section 3 isn't demonstra
 
 ## Phase 0 — Project setup
 
-- [ ] Initialize repo structure: `frontend/`, `backend/` (with `routers/`, `services/`, `models/`), `ai_engine/` (with `extractor/`, `analyzer/`, `correlator/`, `nlp_llm/`, `xai/`, `scorer/`), `reports/`, `tests/`
-- [ ] Set up Python virtual environment; pin dependencies (FastAPI, PyTorch, Scikit-learn, Transformers, SQLite driver, pydantic) in `requirements.txt`
-- [ ] Set up `.env`/config handling for paths and secrets — nothing hardcoded (per `CLAUDE.md` Section 6)
-- [ ] Create SQLite schema migration for all tables in `design.md` Section 4 (`Case`, `EvidenceItem`, `Artifact`, `Finding`, `TimelineEvent`, `ThreatScore`, `Report`)
-- [ ] Enforce `NOT NULL` on `Finding.confidence_score` and `Finding.explanation` at the schema level **[XAI] [SEC]**
-- [ ] Set up base FastAPI app with router registration stubs for `cases`, `evidence`, `analysis`, `timeline`, `reports`, `assistant`, `auth`
-- [ ] Set up test runner (`pytest`) and a CI-less local test-run script
+- [x] Initialize repo structure: `frontend/`, `backend/` (with `routers/`, `services/`, `models/`), `ai_engine/` (with `extractor/`, `analyzer/`, `correlator/`, `nlp_llm/`, `xai/`, `scorer/`), `reports/`, `tests/`
+- [x] Set up Python virtual environment; pin dependencies (FastAPI, PyTorch, Scikit-learn, Transformers, SQLite driver, pydantic) in `requirements.txt`
+- [x] Set up `.env`/config handling for paths and secrets — nothing hardcoded (per `CLAUDE.md` Section 6)
+- [x] Create SQLite schema migration for all tables in `design.md` Section 4 (`Case`, `EvidenceItem`, `Artifact`, `Finding`, `TimelineEvent`, `ThreatScore`, `Report`)
+- [x] Enforce `NOT NULL` on `Finding.confidence_score` and `Finding.explanation` at the schema level **[XAI] [SEC]**
+- [x] Set up base FastAPI app with router registration stubs for `cases`, `evidence`, `analysis`, `timeline`, `reports`, `assistant`, `auth`
+- [x] Set up test runner (`pytest`) and a CI-less local test-run script
 
 ---
 
 ## Phase 1 — Auth & case management
 
-- [ ] `auth` router: investigator registration/login with hashed passwords, session handling **[SEC]**
-- [ ] Session-required dependency applied to all non-auth routers **[SEC]**
-- [ ] `cases` router: create case, list cases, get case detail, update case status
-- [ ] `case_service`: business logic backing the above, with unit tests
-- [ ] Frontend: login screen + case dashboard (list/create case)
-- [ ] Test: create case → appears in list → fetch by id round-trip
+- [x] `auth` router: investigator registration/login with hashed passwords, session handling **[SEC]**
+- [x] Session-required dependency applied to all non-auth routers **[SEC]**
+- [x] `cases` router: create case, list cases, get case detail, update case status
+- [x] `case_service`: business logic backing the above, with unit tests
+- [x] Frontend: login screen + case dashboard (list/create case)
+- [x] Test: create case → appears in list → fetch by id round-trip
 
 ---
 
 ## Phase 2 — Evidence ingestion
 
-- [ ] Read-only file store: write-once storage layout, path convention per case/evidence item **[SEC]**
-- [ ] `POST /evidence/upload`: server-side type/size validation, SHA-256 hashing, `EvidenceItem` row insert (`ingestion_status = pending`) **[SEC]**
-- [ ] `GET /evidence/{case_id}`: list evidence items + ingestion status
-- [ ] Frontend: multi-file upload UI with progress and validation feedback
-- [ ] Test: upload → hash recorded → file never mutated after upload → bad file type/size rejected
+- [x] Read-only file store: write-once storage layout, path convention per case/evidence item **[SEC]**
+- [x] `POST /evidence/upload`: server-side type/size validation, SHA-256 hashing, `EvidenceItem` row insert (`ingestion_status = pending`) **[SEC]**
+- [x] `GET /evidence/{case_id}`: list evidence items + ingestion status
+- [x] Frontend: multi-file upload UI with progress and validation feedback
+- [x] Test: upload → hash recorded → file never mutated after upload → bad file type/size rejected
 
 ---
 
@@ -163,70 +163,70 @@ If, at any milestone, the corresponding bullet list in Section 3 isn't demonstra
 
 Build one Extractor per evidence type. Each takes a raw `EvidenceItem` and produces normalized `Artifact` rows.
 
-- [ ] Log file extractor (system logs)
-- [ ] Browser history extractor
-- [ ] Document/metadata extractor (file metadata, basic doc parsing)
-- [ ] Image metadata extractor (EXIF etc.)
-- [ ] Memory artifact extractor
-- [ ] Network log extractor
-- [ ] Shared `Artifact` normalization interface all extractors conform to (per `design.md` Section 3.3)
-- [ ] Per-item failure isolation: one bad file fails only its own `EvidenceItem`, not the whole case **[SEC]**
-- [ ] Update `ingestion_status` to `parsed`/`failed` per item
-- [ ] Unit tests: one synthetic sample per extractor type (per `CLAUDE.md` Section 7)
-- [ ] `POST /analysis/{case_id}/run` (preprocessing stage) wired to run relevant extractors over pending evidence
+- [x] Log file extractor (system logs)
+- [x] Browser history extractor
+- [x] Document/metadata extractor (file metadata, basic doc parsing)
+- [x] Image metadata extractor (EXIF etc.)
+- [x] Memory artifact extractor
+- [x] Network log extractor
+- [x] Shared `Artifact` normalization interface all extractors conform to (per `design.md` Section 3.3)
+- [x] Per-item failure isolation: one bad file fails only its own `EvidenceItem`, not the whole case **[SEC]**
+- [x] Update `ingestion_status` to `parsed`/`failed` per item
+- [x] Unit tests: one synthetic sample per extractor type (per `CLAUDE.md` Section 7)
+- [x] `POST /analysis/{case_id}/run` (preprocessing stage) wired to run relevant extractors over pending evidence
 
 ---
 
 ## Phase 4 — AI Analysis (Analyzer)
 
-- [ ] Build shared `xai.explain(model_output, features_used) -> (confidence, explanation)` helper **[XAI]** — build this before any model that needs it
-- [ ] Anomaly detection model (Scikit-learn) over `Artifact` features
-- [ ] Artifact classification model
-- [ ] Wire Analyzer outputs through the XAI helper into `Finding` rows (confidence + explanation always populated) **[XAI]**
-- [ ] `GET /analysis/{case_id}/findings`: list findings with confidence + explanation
-- [ ] Unit tests: known synthetic anomaly → detected with a non-empty explanation; known-normal sample → not flagged
-- [ ] Decide and document exact model choice(s) here before building (resolves `design.md` open question #1)
+- [x] Build shared `xai.explain(model_output, features_used) -> (confidence, explanation)` helper **[XAI]** — build this before any model that needs it
+- [x] Anomaly detection model (Scikit-learn) over `Artifact` features
+- [x] Artifact classification model
+- [x] Wire Analyzer outputs through the XAI helper into `Finding` rows (confidence + explanation always populated) **[XAI]**
+- [x] `GET /analysis/{case_id}/findings`: list findings with confidence + explanation
+- [x] Unit tests: known synthetic anomaly → detected with a non-empty explanation; known-normal sample → not flagged
+- [x] Decide and document exact model choice(s) here before building (resolves `design.md` open question #1)
 
 ---
 
 ## Phase 5 — Correlation & Timeline
 
-- [ ] Correlator: link `Artifact`/`Finding` rows across evidence items via shared identifiers (timestamp proximity, IP, user account, file hash, hostname)
-- [ ] Produce `TimelineEvent` rows, chronologically ordered, each with `source_artifact_ids` and a confidence score **[XAI]**
-- [ ] `GET /timeline/{case_id}`: fetch reconstructed timeline
-- [ ] Frontend: timeline view component
-- [ ] Test: two artifacts sharing an identifier across different evidence items → correctly merged into one `TimelineEvent`
+- [x] Correlator: link `Artifact`/`Finding` rows across evidence items via shared identifiers (timestamp proximity, IP, user account, file hash, hostname)
+- [x] Produce `TimelineEvent` rows, chronologically ordered, each with `source_artifact_ids` and a confidence score **[XAI]**
+- [x] `GET /timeline/{case_id}`: fetch reconstructed timeline
+- [x] Frontend: timeline view component
+- [x] Test: two artifacts sharing an identifier across different evidence items → correctly merged into one `TimelineEvent`
 
 ---
 
 ## Phase 6 — Threat scoring
 
-- [ ] Scorer: combine `Finding` confidence scores + correlation density into a case-level `ThreatScore` (0–100) and `risk_level`
-- [ ] `ThreatScore.contributing_findings` populated so the score is itself explainable **[XAI]**
-- [ ] Test: case with high-confidence findings → high score; case with no findings → low score
+- [x] Scorer: combine `Finding` confidence scores + correlation density into a case-level `ThreatScore` (0–100) and `risk_level`
+- [x] `ThreatScore.contributing_findings` populated so the score is itself explainable **[XAI]**
+- [x] Test: case with high-confidence findings → high score; case with no findings → low score
 
 ---
 
 ## Phase 7 — NLP/LLM assistant
 
-- [ ] Decide LLM approach: local Transformers model vs. hosted API (resolves `design.md` open question #1, LLM half)
-- [ ] Decide chat statefulness: stateless per-query vs. session history (resolves `design.md` open question #3)
-- [ ] `POST /assistant/{case_id}/query`: build case-scoped context (only this case's `Artifact`/`Finding`/`TimelineEvent`) into the prompt **[SEC]**
-- [ ] Reject/strip any attempt to pull in another case's data or system config into the prompt **[SEC]**
-- [ ] Auto-detect cryptographic hash types (MD5: 32 chars, SHA-1: 40 chars, SHA-256: 64 chars) and enforce collision guardrails **[SEC]**
-- [ ] Frontend: assistant chat panel in the case workspace
-- [ ] Test: query answered only from in-scope case data; cross-case leakage test (assistant must not answer using another case's evidence)
+- [x] Decide LLM approach: local Transformers model vs. hosted API (resolves `design.md` open question #1, LLM half)
+- [x] Decide chat statefulness: stateless per-query vs. session history (resolves `design.md` open question #3)
+- [x] `POST /assistant/{case_id}/query`: build case-scoped context (only this case's `Artifact`/`Finding`/`TimelineEvent`) into the prompt **[SEC]**
+- [x] Reject/strip any attempt to pull in another case's data or system config into the prompt **[SEC]**
+- [x] Auto-detect cryptographic hash types (MD5: 32 chars, SHA-1: 40 chars, SHA-256: 64 chars) and enforce collision guardrails **[SEC]**
+- [x] Frontend: assistant chat panel in the case workspace
+- [x] Test: query answered only from in-scope case data; cross-case leakage test (assistant must not answer using another case's evidence)
 
 ---
 
 ## Phase 8 — Report generation
 
-- [ ] Report module: assemble `Report` from `TimelineEvent`, `Finding`, `ThreatScore` — no re-running analysis, formatting only (per `design.md` Section 3.4)
-- [ ] Report sections: Evidence Summary → Timeline → Findings (with confidence/justification) → Threat Score → Recommendations
-- [ ] Decide export format(s): PDF, HTML, or both (resolves `design.md` open question #2)
-- [ ] `GET /reports/{case_id}` and `GET /reports/{case_id}/export`
-- [ ] Frontend: report viewer/export screen
-- [ ] Test: generated report includes every finding's confidence + explanation (nothing dropped in formatting)
+- [x] Report module: assemble `Report` from `TimelineEvent`, `Finding`, `ThreatScore` — no re-running analysis, formatting only (per `design.md` Section 3.4)
+- [x] Report sections: Evidence Summary → Timeline → Findings (with confidence/justification) → Threat Score → Recommendations
+- [x] Decide export format(s): PDF, HTML, or both (resolves `design.md` open question #2)
+- [x] `GET /reports/{case_id}` and `GET /reports/{case_id}/export`
+- [x] Frontend: report viewer/export screen
+- [x] Test: generated report includes every finding's confidence + explanation (nothing dropped in formatting)
 
 ---
 
