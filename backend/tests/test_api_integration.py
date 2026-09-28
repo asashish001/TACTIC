@@ -157,3 +157,41 @@ class TestHealth:
         res = client.get("/model/status", headers=auth_headers)
         assert res.status_code == 200
         assert "loaded" in res.json()
+
+
+@pytest.mark.integration
+class TestReports:
+    def test_generate_and_download_report(self, auth_headers, auth_token, created_case):
+        # 1. Generate report
+        gen_res = client.post("/api/report", json={"case_id": created_case, "format": "pdf"}, headers=auth_headers)
+        assert gen_res.status_code == 201
+        report_data = gen_res.json()
+        report_id = report_data["id"]
+        assert report_data["filename"].endswith(".pdf")
+
+        # 2. List reports
+        list_res = client.get(f"/api/report?case_id={created_case}", headers=auth_headers)
+        assert list_res.status_code == 200
+        items = list_res.json().get("items", [])
+        assert any(r["id"] == report_id for r in items)
+
+        # 3. Download report via Bearer header
+        dl_res = client.get(f"/api/report/download/{report_id}", headers=auth_headers)
+        assert dl_res.status_code == 200
+        assert dl_res.headers["content-type"] == "application/pdf"
+        assert "attachment" in dl_res.headers.get("content-disposition", "")
+
+        # 4. Preview report inline
+        prev_res = client.get(f"/api/report/download/{report_id}?inline=true", headers=auth_headers)
+        assert prev_res.status_code == 200
+        assert prev_res.headers["content-type"] == "application/pdf"
+        assert "inline" in prev_res.headers.get("content-disposition", "")
+
+        # 5. Download report via query token
+        token_res = client.get(f"/api/report/download/{report_id}?token={auth_token}&inline=true")
+        assert token_res.status_code == 200
+        assert token_res.headers["content-type"] == "application/pdf"
+
+        # 6. Unauthenticated download rejected
+        unauth_res = client.get(f"/api/report/download/{report_id}")
+        assert unauth_res.status_code == 401

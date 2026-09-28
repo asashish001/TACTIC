@@ -1744,6 +1744,10 @@ async function sendChat(text) {
   try {
     const res = await api('POST', '/api/chat', { case_id: S.activeCaseId, question: q });
     document.getElementById('chatLoading').remove();
+    if (res.detected_hashes && res.detected_hashes.length) {
+      const hashBadges = res.detected_hashes.map(h => `<span class="tag ${h.type === 'SHA-256' ? 'green' : 'amber'}">${esc(h.type)} (${h.length} chars)</span>`).join(' ');
+      chat.innerHTML += `<div style="font-size:10px;margin:2px 0 4px;align-self:start;display:flex;gap:6px;align-items:center"><span style="color:var(--cyan);font-weight:600">◈ Auto-detected Signatures:</span> ${hashBadges}</div>`;
+    }
     chat.innerHTML += `<div class="bubble ai">${esc(res.answer).replace(/\n/g, '<br>')}</div>`;
     chat.innerHTML += `<div style="font-size:9px;color:var(--muted);align-self:start">Provider: ${esc(res.provider || 'unknown')}</div>`;
   } catch (e) {
@@ -1765,7 +1769,11 @@ async function generateReport(fmt) {
   st.innerHTML = '<span class="spinner"></span> Generating ' + fmt.toUpperCase() + ' report…';
   try {
     const res = await api('POST', '/api/report', { case_id: S.activeCaseId, format: fmt });
-    st.innerHTML = `<span style="color:var(--green)">✓ Report generated: ${esc(res.filename)}</span>`;
+    const safeName = esc(res.filename);
+    const escapedArg = safeName.replace(/'/g, "\\'");
+    st.innerHTML = `<span style="color:var(--green)">✓ Report generated: <b>${safeName}</b></span> &nbsp;&nbsp; ` +
+      (res.format === 'pdf' ? `<a onclick="previewReport(${res.id},'${res.format}','${escapedArg}')" style="color:var(--cyan);cursor:pointer;font-weight:700;text-decoration:underline;margin-right:12px">Preview</a>` : '') +
+      `<a onclick="downloadReport(${res.id},'${escapedArg}')" style="color:var(--green);cursor:pointer;font-weight:700;text-decoration:underline">Download</a>`;
     await loadReports();
   } catch (e) {
     var msg = friendlyError(e);
@@ -1781,15 +1789,19 @@ async function loadReports() {
     S.reports = repRes2.items || repRes2;
     const tb = document.getElementById('reportsTable');
     if (S.reports.length) {
-      tb.innerHTML = S.reports.map(r => `<tr>
-        <td>${esc(r.filename)}</td>
-        <td><span class="tag">${esc((r.format || '').toUpperCase())}</span></td>
-        <td style="color:var(--muted)">${esc(r.generated_at || '—')}</td>
-        <td style="white-space:nowrap">
-          <a onclick="downloadReport(${r.id}, '${esc(r.filename).replace(/'/g, "\\'")}'" style="color:var(--cyan);cursor:pointer;font-weight:700;margin-right:10px">DOWNLOAD</a>
-          ${r.format === 'pdf' ? `<a onclick="previewReport(${r.id},'pdf')" style="color:var(--green);cursor:pointer;font-weight:700;font-size:10px">PREVIEW</a>` : ''}
-        </td>
-      </tr>`).join('');
+      tb.innerHTML = S.reports.map(r => {
+        const safeName = esc(r.filename);
+        const escapedArg = safeName.replace(/'/g, "\\'");
+        return `<tr>
+          <td>${safeName}</td>
+          <td><span class="tag">${esc((r.format || '').toUpperCase())}</span></td>
+          <td style="color:var(--muted)">${esc(r.generated_at || '—')}</td>
+          <td style="white-space:nowrap">
+            <a onclick="downloadReport(${r.id}, '${escapedArg}')" style="color:var(--cyan);cursor:pointer;font-weight:700;margin-right:12px">DOWNLOAD</a>
+            ${r.format === 'pdf' ? `<a onclick="previewReport(${r.id}, 'pdf', '${escapedArg}')" style="color:var(--green);cursor:pointer;font-weight:700;font-size:10px">PREVIEW</a>` : ''}
+          </td>
+        </tr>`;
+      }).join('');
     } else {
       tb.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No reports generated yet</td></tr>';
     }
@@ -2207,34 +2219,64 @@ async function downloadReport(reportId, filename) {
     });
     if (!res.ok) { notifyError('Download failed: ' + res.statusText); return; }
     const blob = await res.blob();
-    downloadBlob(blob, filename || 'report_' + reportId);
-    notify('Downloaded ' + (filename || 'report'));
+    const safeName = filename || ('report_' + reportId);
+    downloadBlob(blob, safeName);
+    notify('Downloaded ' + safeName);
   } catch (e) {
     notifyError('Download failed: ' + (e.message || 'Network error'));
   }
 }
 
 // ── Report Preview (authenticated blob) ──
-async function previewReport(reportId, format) {
+async function previewReport(reportId, format, filename) {
   var box = document.getElementById('reportPreviewBox');
   var content = document.getElementById('reportPreviewContent');
+  if (!box || !content) return;
   box.style.display = '';
-  content.innerHTML = '<span class="spinner"></span> Loading preview…';
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  content.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted)"><span class="spinner"></span> Loading report document…</div>';
+
   try {
-    const res = await fetch('/api/report/download/' + reportId, {
+    const res = await fetch('/api/report/download/' + reportId + '?inline=true', {
       headers: { 'Authorization': 'Bearer ' + S.token }
     });
-    if (!res.ok) { content.innerHTML = '<p style="color:var(--red)">Preview failed: ' + res.statusText + '</p>'; return; }
-    const blob = await res.blob();
+    if (!res.ok) {
+      content.innerHTML = '<div style="padding:20px;color:var(--red)">Preview failed: ' + esc(res.statusText || 'Error ' + res.status) + '</div>';
+      return;
+    }
+    const buffer = await res.arrayBuffer();
+    const isPdf = (format || '').toLowerCase() === 'pdf';
+    const mime = isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const blob = new Blob([buffer], { type: mime });
     const blobUrl = URL.createObjectURL(blob);
-    if (format === 'pdf') {
-      content.innerHTML = '<iframe src="' + blobUrl + '" style="width:100%;height:500px;border:none"></iframe>';
+    const safeFilename = filename || ('report_' + reportId + '.' + (format || 'pdf'));
+    const escapedArg = esc(safeFilename).replace(/'/g, "\\'");
+
+    var headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);border-radius:6px 6px 0 0;font-size:12px">' +
+      '<div><strong style="color:var(--cyan)">' + esc(safeFilename) + '</strong> &nbsp;<span class="tag">' + esc((format || '').toUpperCase()) + '</span></div>' +
+      '<div style="display:flex;gap:8px;align-items:center">' +
+        (isPdf ? '<a class="btn" style="padding:4px 10px;font-size:11px" href="' + blobUrl + '" target="_blank" rel="noopener">Open in New Tab ↗</a>' : '') +
+        '<button class="btn primary" style="padding:4px 10px;font-size:11px" onclick="downloadReport(' + reportId + ', \'' + escapedArg + '\')">Download ⇓</button>' +
+        '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="closeReportPreview()">✕ Close</button>' +
+      '</div>' +
+    '</div>';
+
+    if (isPdf) {
+      content.innerHTML = headerHtml + '<iframe src="' + blobUrl + '#view=FitH" style="width:100%;height:680px;border:none;background:#2d333b;display:block"></iframe>';
     } else {
-      content.innerHTML = '<div style="padding:20px;color:#142132;font-family:Georgia,serif"><p>DOCX preview — <a onclick="downloadReport(' + reportId + ')" style="color:#1c4f77;cursor:pointer">click to download</a></p></div>';
+      content.innerHTML = headerHtml + '<div style="padding:40px 20px;text-align:center;background:rgba(255,255,255,0.01)">' +
+        '<p style="font-size:14px;color:var(--text);margin-bottom:14px">Microsoft Word documents (.docx) cannot be previewed directly inside the browser.</p>' +
+        '<button class="btn primary" onclick="downloadReport(' + reportId + ', \'' + escapedArg + '\')">Download ' + esc(safeFilename) + '</button>' +
+      '</div>';
     }
   } catch (e) {
-    content.innerHTML = '<p style="color:var(--red)">Preview failed: ' + (e.message || 'Network error') + '</p>';
+    content.innerHTML = '<div style="padding:20px;color:var(--red)">Preview failed: ' + esc(e.message || 'Network error') + '</div>';
   }
+}
+
+function closeReportPreview() {
+  var box = document.getElementById('reportPreviewBox');
+  if (box) box.style.display = 'none';
 }
 
 // ── Pagination helper ──

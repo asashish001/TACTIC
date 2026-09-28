@@ -21,6 +21,7 @@ class ExtractedArtifactResponse(BaseModel):
 
 
 class ModelStatusResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_name: str
     version: str
     loaded: bool

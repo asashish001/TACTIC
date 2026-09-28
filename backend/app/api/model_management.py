@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 from typing import Any
 
@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/model", tags=["Model Management Module"])
 
 
 class ModelRegisterRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_name: str = Field(..., min_length=2, max_length=100)
     model_type: str = Field(..., description="anomaly_detection, nlp_ner, threat_classifier")
     version: str = Field(default="2.0.0")
@@ -32,6 +33,7 @@ class ModelRegisterRequest(BaseModel):
 
 
 class ModelStatusResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_id: int
     model_name: str
     model_type: str
@@ -49,6 +51,7 @@ class ModelStatusResponse(BaseModel):
 
 
 class ModelRegistryResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     id: int
     model_name: str
     model_type: str

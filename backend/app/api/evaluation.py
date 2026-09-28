@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 from typing import Any
 
@@ -20,6 +20,7 @@ class RunEvaluationRequest(BaseModel):
 
 
 class ModelEvaluationResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     id: int
     model_name: str
     model_version: str

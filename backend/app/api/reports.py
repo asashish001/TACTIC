@@ -10,12 +10,48 @@ from app.models.case import Case
 from app.models.report import Report
 from app.models.user import User
 from app.schemas.report import ReportCreate, ReportResponse
-from app.auth.security import get_current_user, require_case_access, RoleChecker
+from app.auth.security import get_current_user, require_case_access, RoleChecker, decode_token
 from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_WRITE
 from app.services.forensic_audit import record_audit, record_custody
 from app.services.report_service import generate_report as _generate_report
 
 router = APIRouter(prefix="/api/report", tags=["Forensic Reports Engine"])
+
+def get_user_for_download(
+    request: Request,
+    token: str | None = None,
+    db: Session = Depends(get_db),
+) -> User:
+    """Authenticate via either Bearer header or URL token parameter."""
+    auth_header = request.headers.get("Authorization")
+    token_str = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token_str = auth_header[7:].strip()
+    elif token:
+        token_str = token
+
+    if not token_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        payload = decode_token(token_str, expected_type="access")
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired authentication token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = db.query(User).filter(User.id == payload.get("user_id")).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
 
 class GenerateReportRequest(ReportCreate):
     pass
@@ -78,10 +114,12 @@ def list_reports(request: Request,
 @limiter.limit(RATE_LIMIT_READ)
 def download_report(request: Request, 
     report_id: int,
+    inline: bool = False,
+    token: str | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_user_for_download)
 ):
-    """Retrieve and stream the physical report file for download."""
+    """Retrieve and stream the physical report file for download or inline preview."""
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found in database registry.")
@@ -96,9 +134,20 @@ def download_report(request: Request,
     record_audit(db, "report_downloaded", f"Downloaded report '{report.filename}'.", actor_id=current_user.id,
                  case_id=report.case_id, details={"report_id": report.id})
     db.commit()
+
+    fmt = (report.format or "").lower()
+    if fmt == "pdf":
+        media_type = "application/pdf"
+    elif fmt == "docx":
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        media_type = "application/octet-stream"
+
+    content_disposition = "inline" if inline else "attachment"
         
     return FileResponse(
         path=file_path,
-        media_type="application/octet-stream",
-        filename=report.filename
+        media_type=media_type,
+        filename=report.filename,
+        content_disposition_type=content_disposition,
     )

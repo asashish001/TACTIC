@@ -24,6 +24,38 @@ class ChatRequest(BaseModel):
     question: str = Field(..., max_length=1000)
 
 
+def detect_hash_signatures(text: str) -> list[dict]:
+    """Auto-detect cryptographic hash signatures based on hexadecimal character length:
+    - 32 characters  --> MD5
+    - 40 characters  --> SHA-1
+    - 64 characters  --> SHA-256
+    """
+    detected = []
+    seen = set()
+    # Find contiguous hexadecimal word tokens
+    tokens = re.findall(r"\b[a-fA-F0-9]+\b", text)
+    for token in tokens:
+        val = token.lower()
+        if val in seen:
+            continue
+        length = len(val)
+        if length == 32:
+            hash_type = "MD5"
+        elif length == 40:
+            hash_type = "SHA-1"
+        elif length == 64:
+            hash_type = "SHA-256"
+        else:
+            continue
+        seen.add(val)
+        detected.append({
+            "hash": val,
+            "type": hash_type,
+            "length": length
+        })
+    return detected
+
+
 def build_rag_context(case: Case, db: Session) -> dict:
     """Build factual context payload to bound the LLM answer."""
     evidence = db.query(Evidence).filter(Evidence.case_id == case.id).limit(50).all()
@@ -36,7 +68,13 @@ def build_rag_context(case: Case, db: Session) -> dict:
             "description": case.description
         },
         "evidence": [
-            {"filename": item.filename, "mime": item.detected_mime, "sha256": item.sha256}
+            {
+                "filename": item.filename,
+                "mime": item.detected_mime,
+                "sha256": item.sha256,
+                "sha1": getattr(item, "sha1", None),
+                "md5": getattr(item, "md5", None),
+            }
             for item in evidence
         ],
         "findings": [
@@ -58,6 +96,12 @@ def validate_response(answer: str, context: dict) -> tuple:
 
     for ev in context.get("evidence", []):
         known_filenames.add(ev.get("filename", "").lower())
+        if ev.get("sha256"):
+            known_filenames.add(ev.get("sha256").lower())
+        if ev.get("sha1"):
+            known_filenames.add(ev.get("sha1").lower())
+        if ev.get("md5"):
+            known_filenames.add(ev.get("md5").lower())
     for f in context.get("findings", []):
         reason = f.get("reason", "")
         for ip in re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', reason):
@@ -112,6 +156,34 @@ def build_local_fallback(context: dict, question: str) -> str:
         "Preserved Evidence Files: " + str(len(evidence))
     ]
 
+    # Auto-detect hash signatures in user query (32 chars: MD5, 40 chars: SHA-1, 64 chars: SHA-256)
+    detected_hashes = detect_hash_signatures(question)
+    if detected_hashes:
+        lines.append("\n[CRYPTOGRAPHIC HASH SIGNATURE AUTO-DETECTION]")
+        for item in detected_hashes:
+            h_val = item["hash"]
+            h_type = item["type"]
+            h_len = item["length"]
+            lines.append(f"  • Signature: {h_val}")
+            lines.append(f"    Length: {h_len} characters -> Auto-detected Hash Type: {h_type}")
+            if h_type in ("MD5", "SHA-1"):
+                lines.append(f"    Security Advisory: {h_type} is subject to collision vulnerabilities. Do NOT conclude file identity or whitelist based solely on {h_type}; ALWAYS verify via SHA-256.")
+            elif h_type == "SHA-256":
+                lines.append("    Cryptographic Standard: SHA-256 is collision-resistant and suitable for definitive identity verification.")
+
+            # Search for matching evidence in current case
+            matches = [
+                ev for ev in evidence
+                if (ev.get("sha256") and ev.get("sha256").lower() == h_val)
+                or (ev.get("sha1") and ev.get("sha1").lower() == h_val)
+                or (ev.get("md5") and ev.get("md5").lower() == h_val)
+            ]
+            if matches:
+                for match in matches:
+                    lines.append(f"    Matched Case Evidence: '{match.get('filename')}' (Evidence SHA-256: {match.get('sha256')})")
+            else:
+                lines.append(f"    Case Match: No ingested evidence file in Case {case_info.get('number', 'N/A')} matches this {h_type} digest.")
+
     for i, item in enumerate(evidence[:5]):
         lines.append("  [" + str(i+1) + "] " + item.get('filename', 'unknown') + " (" + item.get('mime', 'unknown') + ")")
 
@@ -146,6 +218,28 @@ def fetch_ai_response(context: dict, question: str) -> tuple:
         logger.warning("AI_PROVIDER is set to 'openai' but OPENAI_API_KEY is not configured in .env")
         return build_local_fallback(context, question), "local (OPENAI_API_KEY not configured in .env)"
 
+    # Auto-detect hash signatures in user query for LLM context injection
+    detected_hashes = detect_hash_signatures(question)
+    hash_context_section = ""
+    if detected_hashes:
+        hash_lines = ["\n[AUTO-DETECTED HASH SIGNATURES IN USER QUERY]:"]
+        for h in detected_hashes:
+            h_val = h["hash"]
+            h_type = h["type"]
+            h_len = h["length"]
+            matching_evidence = [
+                ev for ev in context.get("evidence", [])
+                if (ev.get("sha256") and ev.get("sha256").lower() == h_val)
+                or (ev.get("sha1") and ev.get("sha1").lower() == h_val)
+                or (ev.get("md5") and ev.get("md5").lower() == h_val)
+            ]
+            if matching_evidence:
+                match_desc = f"MATCHES case evidence file '{matching_evidence[0].get('filename')}' (Case SHA-256: {matching_evidence[0].get('sha256')})"
+            else:
+                match_desc = "No matching file in current case evidence"
+            hash_lines.append(f"- Hash: {h_val} | Length: {h_len} characters | Auto-detected Type: {h_type} | Case Status: {match_desc}")
+        hash_context_section = "\n".join(hash_lines) + "\n"
+
     prompt = (
         "You are an expert Digital Forensics Investigator AI assistant named TACTIC.\n"
         "RULES - You MUST follow these rules strictly:\n"
@@ -158,8 +252,15 @@ def fetch_ai_response(context: dict, question: str) -> tuple:
         "7. Clearly distinguish between facts (from evidence) and your analysis (interpretation).\n"
         "8. Reference specific evidence files and findings when making claims.\n"
         "9. Include a confidence qualifier: HIGH (directly supported), MEDIUM (inferred), LOW (limited data).\n"
-        "10. End every response with: [This analysis is based on available case data and should be verified by the investigator.]\n\n"
-        "CONTEXT:\n" + json.dumps(context, default=str)[:20000] + "\n\n"
+        "10. HASH SIGNATURE AUTO-DETECTION: When the user pastes or queries a cryptographic hash signature, automatically detect and identify its algorithm based strictly on character length:\n"
+        "    - Exactly 32 hexadecimal characters  -> Auto-detect and identify as MD5\n"
+        "    - Exactly 40 hexadecimal characters  -> Auto-detect and identify as SHA-1\n"
+        "    - Exactly 64 hexadecimal characters  -> Auto-detect and identify as SHA-256\n"
+        "    State the detected hash type, character count, and whether it correlates with any case evidence.\n"
+        "11. Never conclude file identity, whitelist a file, or match an incident based solely on an MD5 or SHA-1 hash (due to cryptographic collision vulnerabilities); ALWAYS require and verify via SHA-256 before concluding identity or confirming a match.\n"
+        "12. End every response with: [This analysis is based on available case data and should be verified by the investigator.]\n\n"
+        "CONTEXT:\n" + json.dumps(context, default=str)[:20000] + "\n"
+        + hash_context_section + "\n"
         "QUESTION: " + question + "\n\n"
         "ANSWER (following all rules above):"
     )
@@ -282,9 +383,11 @@ def ask_assistant(request: Request,
     answer, provider = fetch_ai_response(context, payload.question)
     # Run validation on final answer
     answer, validation_meta = validate_response(answer, context)
+    detected_hashes = detect_hash_signatures(payload.question)
     return {
         "answer": answer,
         "provider": provider,
+        "detected_hashes": detected_hashes,
         "safeguards": {
             "grounding_score": validation_meta["grounding_score"],
             "fabricated_entities": validation_meta["fabricated_entities"],

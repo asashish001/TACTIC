@@ -4,6 +4,102 @@ An enterprise-grade, AI-powered digital forensics investigation platform built f
 
 ---
 
+## Quickstart Guide
+
+### Prerequisites
+- Python 3.10+ (tested on Python 3.11 - 3.13)
+- Modern web browser (Chrome, Firefox, Edge, Safari)
+
+### 1. Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/asashish001/TACTIC.git
+cd TACTIC
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment
+
+Copy the template configuration:
+
+```bash
+cp .env.example .env
+```
+
+Key environment variables:
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `SECRET_KEY` | JWT signing secret key | *(auto-generated if unset)* |
+| `DATABASE_URL` | SQLite database URI | `sqlite:///app/database/forensics.db` |
+| `DEFAULT_ADMIN_USERNAME` | Default admin username | `admin` |
+| `DEFAULT_ADMIN_PASSWORD` | Default admin password | `ChangeMe123!` |
+| `AI_PROVIDER` | AI provider for chat (`gemini`, `openai`, `ollama`, `disabled`) | `disabled` |
+| `NLP_MODEL_NAME` | HuggingFace NER model (`dslim/bert-base-NER` or `fallback`) | `dslim/bert-base-NER` |
+
+### 3. Launch Application
+
+Start the server using the root development launcher:
+
+```bash
+python app.py
+```
+
+Or run Uvicorn directly from the `backend/` directory:
+
+```bash
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Navigate to **[http://127.0.0.1:8000](http://127.0.0.1:8000)**.  
+**Default credentials**: `admin` / `ChangeMe123!`.
+
+---
+
+## Docker Deployment
+
+To deploy in an isolated, containerized environment:
+
+```bash
+docker-compose up --build -d
+```
+
+The application will be accessible at `http://localhost:8000` with persistent volumes mounted for SQLite data, evidence uploads, and generated reports.
+
+---
+
+## Core Capabilities
+
+### 1. Forensic Evidence Ingestion & Integrity
+- **Stream-Safe Processing**: Direct disk-streaming upload handling large evidence files without memory spikes.
+- **Cryptographic Triad**: Automatic computation of MD5, SHA-1, and SHA-256 hashes upon upload.
+- **Immutable Chain of Custody**: Automatic verification of magic numbers, duplicate detection across investigations, and tamper-evident audit logging.
+- **Authenticated Downloads**: Secure token-authorized downloads via blob URLs and strict path-traversal prevention.
+
+### 2. 8-Stage Forensic Pipeline & Machine Learning
+- **Stage 1 (Upload)**: Evidence staging and parameter validation.
+- **Stage 2 (Hashing)**: Cryptographic checksum baseline calculation.
+- **Stage 3 (Preprocessing)**: Deep metadata extraction (EXIF GPS, Office properties, PE headers, EVTX log records).
+- **Stage 4 (Artifact Extraction)**: 13 entity types extracted via Hugging Face Transformer NER with regex fallback (IPs, URLs, emails, domains, file paths, processes, hostnames, timestamps, SIDs, UUIDs, commands, usernames, and forensic events).
+- **Stage 5 (Anomaly Detection)**: Unsupervised Scikit-Learn Isolation Forest outlier analysis with XAI decision trees and feature attribution bar charts.
+- **Stage 6 (Correlation)**: Multi-factor entity relationship mapping with normalized confidence scores.
+- **Stage 7 (Timeline)**: Unified UTC chronological ordering across heterogeneous evidence sources.
+- **Stage 8 (Reporting)**: Publication-grade PDF and DOCX compilation.
+
+### 3. Human-in-the-Loop Finding Review
+- Interactive review table enabling investigators to **Approve**, **Reject**, or **Escalate** automated findings.
+- Tracks reviewer user ID, timestamps, and justification notes in compliance with forensic audit standards.
+- Bulk review capabilities for rapid incident triage.
+
+### 4. Grounded AI Assistant (RAG)
+- Context-bounded investigation assistant querying case-specific evidence and findings.
+- Multi-provider support: Google Gemini, OpenAI, Ollama (local), or deterministic rule summary fallback.
+- Real-time anti-hallucination validation verifying all mentioned entities against known case artifacts.
+
+---
+
 ## Architecture Overview
 
 ```mermaid
@@ -112,102 +208,6 @@ AI Digital Forensics Assistant/
     ├── invoice.pdf.exe
     └── network_observations.log
 ```
-
----
-
-## Core Capabilities
-
-### 1. Forensic Evidence Ingestion & Integrity
-- **Stream-Safe Processing**: Direct disk-streaming upload handling large evidence files without memory spikes.
-- **Cryptographic Triad**: Automatic computation of MD5, SHA-1, and SHA-256 hashes upon upload.
-- **Immutable Chain of Custody**: Automatic verification of magic numbers, duplicate detection across investigations, and tamper-evident audit logging.
-- **Authenticated Downloads**: Secure token-authorized downloads via blob URLs and strict path-traversal prevention.
-
-### 2. 8-Stage Forensic Pipeline & Machine Learning
-- **Stage 1 (Upload)**: Evidence staging and parameter validation.
-- **Stage 2 (Hashing)**: Cryptographic checksum baseline calculation.
-- **Stage 3 (Preprocessing)**: Deep metadata extraction (EXIF GPS, Office properties, PE headers, EVTX log records).
-- **Stage 4 (Artifact Extraction)**: 13 entity types extracted via Hugging Face Transformer NER with regex fallback (IPs, URLs, emails, domains, file paths, processes, hostnames, timestamps, SIDs, UUIDs, commands, usernames, and forensic events).
-- **Stage 5 (Anomaly Detection)**: Unsupervised Scikit-Learn Isolation Forest outlier analysis with XAI decision trees and feature attribution bar charts.
-- **Stage 6 (Correlation)**: Multi-factor entity relationship mapping with normalized confidence scores.
-- **Stage 7 (Timeline)**: Unified UTC chronological ordering across heterogeneous evidence sources.
-- **Stage 8 (Reporting)**: Publication-grade PDF and DOCX compilation.
-
-### 3. Human-in-the-Loop Finding Review
-- Interactive review table enabling investigators to **Approve**, **Reject**, or **Escalate** automated findings.
-- Tracks reviewer user ID, timestamps, and justification notes in compliance with forensic audit standards.
-- Bulk review capabilities for rapid incident triage.
-
-### 4. Grounded AI Assistant (RAG)
-- Context-bounded investigation assistant querying case-specific evidence and findings.
-- Multi-provider support: Google Gemini, OpenAI, Ollama (local), or deterministic rule summary fallback.
-- Real-time anti-hallucination validation verifying all mentioned entities against known case artifacts.
-
----
-
-## Quickstart Guide
-
-### Prerequisites
-- Python 3.10+ (tested on Python 3.11 - 3.13)
-- Modern web browser (Chrome, Firefox, Edge, Safari)
-
-### 1. Installation
-
-Clone the repository and install dependencies:
-
-```bash
-git clone https://github.com/asashish001/TACTIC.git
-cd TACTIC
-pip install -r requirements.txt
-```
-
-### 2. Configure Environment
-
-Copy the template configuration:
-
-```bash
-cp .env.example .env
-```
-
-Key environment variables:
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `SECRET_KEY` | JWT signing secret key | *(auto-generated if unset)* |
-| `DATABASE_URL` | SQLite database URI | `sqlite:///app/database/forensics.db` |
-| `DEFAULT_ADMIN_USERNAME` | Default admin username | `admin` |
-| `DEFAULT_ADMIN_PASSWORD` | Default admin password | `ChangeMe123!` |
-| `AI_PROVIDER` | AI provider for chat (`gemini`, `openai`, `ollama`, `disabled`) | `disabled` |
-| `NLP_MODEL_NAME` | HuggingFace NER model (`dslim/bert-base-NER` or `fallback`) | `dslim/bert-base-NER` |
-
-### 3. Launch Application
-
-Start the server using the root development launcher:
-
-```bash
-python app.py
-```
-
-Or run Uvicorn directly from the `backend/` directory:
-
-```bash
-cd backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-Navigate to **[http://127.0.0.1:8000](http://127.0.0.1:8000)**.  
-**Default credentials**: `admin` / `ChangeMe123!`.
-
----
-
-## Docker Deployment
-
-To deploy in an isolated, containerized environment:
-
-```bash
-docker-compose up --build -d
-```
-
-The application will be accessible at `http://localhost:8000` with persistent volumes mounted for SQLite data, evidence uploads, and generated reports.
 
 ---
 
