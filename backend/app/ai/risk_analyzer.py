@@ -1,10 +1,11 @@
+import logging
 from pathlib import Path
+
 from sqlalchemy.orm import Session
+
+from app.ai.registry import get_log_detector, get_threat_classifier
 from app.models.evidence import Evidence
 from app.models.finding import Finding
-from app.ai.registry import get_log_detector, get_threat_classifier
-import logging
-
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,6 @@ def run_risk_analysis(evidence: Evidence, file_absolute_path: Path, db: Session 
     if not extension and "." in filename:
         extension = filename.split(".")[-1].lower()
     
-    # 1. Base classification using PyTorch threat classifier
     metadata_text = f"Filename: {filename} Extension: {extension} MIME: {evidence.detected_mime} "
     if "sample" in evidence.extracted_metadata:
         metadata_text += f"Sample: {evidence.extracted_metadata['sample']}"
@@ -32,7 +32,6 @@ def run_risk_analysis(evidence: Evidence, file_absolute_path: Path, db: Session 
     reason = analysis["reason"]
     recommendation = analysis["recommendation"]
     
-    # Calculate initial risk score based on category
     risk_score = 0
     severity = "info"
     
@@ -88,7 +87,6 @@ def run_risk_analysis(evidence: Evidence, file_absolute_path: Path, db: Session 
             details=analysis
         ))
 
-    # 2. File Signature Mismatches
     if evidence.extracted_metadata.get("mime_mismatch"):
         findings.append(Finding(
             case_id=evidence.case_id,
@@ -118,7 +116,6 @@ def run_risk_analysis(evidence: Evidence, file_absolute_path: Path, db: Session 
             }}
         ))
 
-    # 3. Large File Threshold Alert
     file_size_val = getattr(evidence, "file_size", getattr(evidence, "file_size_bytes", 0))
     if file_size_val > 500 * 1024 * 1024: # > 500 MB
         findings.append(Finding(
@@ -147,7 +144,6 @@ def run_risk_analysis(evidence: Evidence, file_absolute_path: Path, db: Session 
             }}
         ))
 
-    # 4. Double Extension Trick (e.g., invoice.pdf.exe)
     suffixes = Path(evidence.filename).suffixes
     if len(suffixes) >= 2 and suffixes[-1].lstrip(".").lower() in {"exe", "dll", "sys", "scr", "bat", "cmd", "ps1", "vbs"}:
         findings.append(Finding(
@@ -178,7 +174,6 @@ def run_risk_analysis(evidence: Evidence, file_absolute_path: Path, db: Session 
             }}
         ))
 
-    # 5. Ingest and analyze EVTX logs using the Isolation Forest outlier detector with configurable threshold
     if extension == "evtx" and "records" in evidence.extracted_metadata:
         records = evidence.extracted_metadata["records"]
         try:
@@ -192,7 +187,7 @@ def run_risk_analysis(evidence: Evidence, file_absolute_path: Path, db: Session 
         
         for item in anomalies:
             event_id = item["event_id"]
-            finding_severity = item["severity"] if "severity" in item else "medium"
+            finding_severity = item.get("severity", "medium")
             if item["confidence"] >= threshold:
                 finding_severity = "high"
                 

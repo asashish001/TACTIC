@@ -81,8 +81,8 @@ The application will be accessible at `http://localhost:8000` with persistent vo
 ### 2. 8-Stage Forensic Pipeline & Machine Learning
 - **Stage 1 (Upload)**: Evidence staging and parameter validation.
 - **Stage 2 (Hashing)**: Cryptographic checksum baseline calculation.
-- **Stage 3 (Preprocessing)**: Deep metadata extraction (EXIF GPS, Office properties, PE headers, EVTX log records).
-- **Stage 4 (Artifact Extraction)**: 13 entity types extracted via Hugging Face Transformer NER with regex fallback (IPs, URLs, emails, domains, file paths, processes, hostnames, timestamps, SIDs, UUIDs, commands, usernames, and forensic events).
+- **Stage 3 (Preprocessing)**: Deep metadata extraction (EXIF GPS, Office properties, PE headers, EVTX log records, `pypdf` parsing).
+- **Stage 4 (Artifact Extraction)**: 13 entity types extracted via Hugging Face Transformer NER with regex fallback (IPs, URLs, emails, domains, file paths, processes, hostnames, timestamps, SIDs, UUIDs, commands, usernames, and forensic events). Supported by robust SQLAlchemy 2.0 `Mapped` schemas.
 - **Stage 5 (Anomaly Detection)**: Unsupervised Scikit-Learn Isolation Forest outlier analysis with XAI decision trees and feature attribution bar charts.
 - **Stage 6 (Correlation)**: Multi-factor entity relationship mapping with normalized confidence scores.
 - **Stage 7 (Timeline)**: Unified UTC chronological ordering across heterogeneous evidence sources.
@@ -95,6 +95,7 @@ The application will be accessible at `http://localhost:8000` with persistent vo
 
 ### 4. Grounded AI Assistant (RAG)
 - Context-bounded investigation assistant querying case-specific evidence and findings.
+- Deep Semantic Search: Uses local Snowflake (arctic-embed) models to dynamically retrieve and prioritize the most relevant evidence for your specific query.
 - Multi-provider support: Google Gemini, OpenAI, Ollama (local), or deterministic rule summary fallback.
 - Real-time anti-hallucination validation verifying all mentioned entities against known case artifacts.
 

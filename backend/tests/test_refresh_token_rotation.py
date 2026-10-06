@@ -7,11 +7,12 @@ Verifies:
   4. Increasing token_version on the user invalidates all existing tokens
 """
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.database.session import SessionLocal
+from app.main import app
 from app.models.user import User
 
 client = TestClient(app)
@@ -53,17 +54,14 @@ class TestRefreshTokenRotation:
         body = res.json()
         assert "access_token" in body
         assert "refresh_token" in body
-        # The new refresh token should be different from the old one
         assert body["refresh_token"] != refresh
 
     def test_old_token_rejected_after_rotation(self, login_pair):
         """After a successful refresh, the old token must not work again."""
         _, refresh_old = login_pair
-        # Rotate once
         res1 = client.post("/api/auth/refresh", json={"refresh_token": refresh_old})
         assert res1.status_code == 200
 
-        # Try reusing the old token
         res2 = client.post("/api/auth/refresh", json={"refresh_token": refresh_old})
         assert res2.status_code == 401
         assert "already been used" in res2.json()["detail"].lower()
@@ -80,16 +78,13 @@ class TestRefreshTokenRotation:
         """If an old token is reused (theft), ALL refresh tokens for that user are invalidated."""
         _, refresh_a = login_pair
 
-        # Rotate once → get refresh_b
         res1 = client.post("/api/auth/refresh", json={"refresh_token": refresh_a})
         assert res1.status_code == 200
         refresh_b = res1.json()["refresh_token"]
 
-        # Reuse refresh_a → triggers theft detection
         res2 = client.post("/api/auth/refresh", json={"refresh_token": refresh_a})
         assert res2.status_code == 401
 
-        # refresh_b should now also be invalid (all tokens cleared)
         res3 = client.post("/api/auth/refresh", json={"refresh_token": refresh_b})
         assert res3.status_code == 401
 
@@ -97,18 +92,14 @@ class TestRefreshTokenRotation:
         """After theft detection clears tokens, the user can re-login successfully."""
         username, password = registered_user
 
-        # Login → get token_a
         res = client.post("/api/auth/login", json={"username": username, "password": password})
         refresh_a = res.json()["refresh_token"]
 
-        # Rotate → get token_b
         res = client.post("/api/auth/refresh", json={"refresh_token": refresh_a})
-        refresh_b = res.json()["refresh_token"]
+        res.json()["refresh_token"]
 
-        # Reuse token_a → triggers theft detection (clears all)
         client.post("/api/auth/refresh", json={"refresh_token": refresh_a})
 
-        # Re-login should work
         res = client.post("/api/auth/login", json={"username": username, "password": password})
         assert res.status_code == 200
         assert "refresh_token" in res.json()
@@ -121,7 +112,6 @@ class TestTokenVersionRevocation:
         """If token_version is bumped, all existing access tokens are rejected."""
         from app.auth.security import create_access_token, get_password_hash
 
-        # Create user directly in DB to avoid rate limits
         username = f"vtest_{uuid.uuid4().hex[:6]}"
         db = SessionLocal()
         try:
@@ -139,17 +129,14 @@ class TestTokenVersionRevocation:
         finally:
             db.close()
 
-        # Issue an access token at version 0
         access = create_access_token({
             "sub": username, "user_id": user_id,
             "role": "investigator", "token_version": 0,
         })
 
-        # Verify it works
         res = client.get("/api/users/me", headers={"Authorization": f"Bearer {access}"})
         assert res.status_code == 200
 
-        # Bump token_version in the database (simulates password change)
         db = SessionLocal()
         try:
             user = db.query(User).filter(User.id == user_id).first()
@@ -158,7 +145,6 @@ class TestTokenVersionRevocation:
         finally:
             db.close()
 
-        # The old access token should now be rejected
         res = client.get("/api/users/me", headers={"Authorization": f"Bearer {access}"})
         assert res.status_code == 401
 
@@ -166,7 +152,6 @@ class TestTokenVersionRevocation:
         """If token_version is bumped, all refresh tokens are also rejected."""
         from app.auth.security import create_refresh_token, get_password_hash
 
-        # Create user directly in DB to avoid rate limits
         username = f"vtest_{uuid.uuid4().hex[:6]}"
         db = SessionLocal()
         try:
@@ -185,13 +170,11 @@ class TestTokenVersionRevocation:
         finally:
             db.close()
 
-        # Issue a refresh token at version 0
         refresh = create_refresh_token({
             "sub": username, "user_id": user_id,
             "role": "investigator", "token_version": 0,
         })
 
-        # Bump token_version
         db = SessionLocal()
         try:
             user = db.query(User).filter(User.id == user_id).first()
@@ -200,7 +183,6 @@ class TestTokenVersionRevocation:
         finally:
             db.close()
 
-        # The old refresh token should be rejected
         res = client.post("/api/auth/refresh", json={"refresh_token": refresh})
         assert res.status_code == 401
         assert "revoked" in res.json()["detail"].lower()

@@ -6,6 +6,7 @@ import math
 import time
 from pathlib import Path
 from typing import Any
+
 from sqlalchemy.orm import Session
 
 from app.models.model_evaluation import ModelEvaluationRun
@@ -32,7 +33,6 @@ def _calculate_roc_auc(scores: list[float], labels: list[int]) -> float:
     if not scores or not labels or len(set(labels)) < 2:
         return 0.5
 
-    # Step threshold from 0.0 to 1.0
     threshold_steps = [i / 50.0 for i in range(51)]
     points = []
 
@@ -50,10 +50,8 @@ def _calculate_roc_auc(scores: list[float], labels: list[int]) -> float:
         fpr = fp / total_neg
         points.append((fpr, tpr))
 
-    # Sort points by FPR ascending
     points.sort(key=lambda p: p[0])
 
-    # Trapezoidal integration area under ROC curve
     auc = 0.0
     for i in range(1, len(points)):
         fpr_diff = points[i][0] - points[i - 1][0]
@@ -78,7 +76,6 @@ def evaluate_anomaly_detector(
 
     effective_threshold = threshold if threshold is not None else get_anomaly_threshold(db)
 
-    # Check for ground-truth presence
     has_labels = logs and any("is_anomaly" in item for item in logs)
     if not has_labels:
         run = ModelEvaluationRun(
@@ -102,23 +99,19 @@ def evaluate_anomaly_detector(
         db.refresh(run)
         return run
 
-    # Run evaluation
     detector = LogAnomalyDetector()
     
     start_time = time.perf_counter()
-    start_mem = get_process_memory_mb()
+    get_process_memory_mb()
     cpu_start = time.process_time()
 
-    # Get predictions
     flagged_findings = detector.analyze_logs(logs, threshold=effective_threshold)
-    flagged_indices = {f.get("details", {}).get("xai_explanation", {}).get("evidence_reference", {}).get("event_id") for f in flagged_findings}
+    {f.get("details", {}).get("xai_explanation", {}).get("evidence_reference", {}).get("event_id") for f in flagged_findings}
 
-    # Gather scores and predictions
     y_true = []
     y_pred = []
     anomaly_scores = []
 
-    # Re-predict individual scores
     text_lines = []
     for r in logs:
         data = r.get("data", {})
@@ -131,7 +124,6 @@ def evaluate_anomaly_detector(
     for idx, r in enumerate(logs):
         label = 1 if r.get("is_anomaly") else 0
         raw_s = float(raw_scores[idx])
-        # Convert Isolation Forest raw decision score (-0.5 to 0.5) to confidence (0 to 1)
         conf = float(1.0 / (1.0 + math.exp(raw_s * 6.0)))
         
         pred = 1 if conf >= effective_threshold else 0
@@ -143,7 +135,6 @@ def evaluate_anomaly_detector(
     cpu_sec = time.process_time() - cpu_start
     final_mem = get_process_memory_mb()
 
-    # Confusion matrix calculations
     tp = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 1)
     tn = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 0)
     fp = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 1)
@@ -235,7 +226,7 @@ def evaluate_nlp_extractor(
         return run
 
     start_time = time.perf_counter()
-    start_mem = get_process_memory_mb()
+    get_process_memory_mb()
     cpu_start = time.process_time()
 
     tp = fp = fn = 0

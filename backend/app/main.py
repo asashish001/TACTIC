@@ -6,7 +6,7 @@ their respective responsibilities:
   - ``app/startup``   – database schema, migrations, admin seeding
   - ``app/config``    – CORS origins, rate limiter
   - ``app/api/system`` – health check & model status endpoints
-  - ``app/api/assets`` – logo, favicon, frontend mount
+  - ``app/api/assets`` – logo, favicon
 """
 import logging
 import sys
@@ -14,8 +14,8 @@ import sys
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response
@@ -31,13 +31,13 @@ logging.basicConfig(
 )
 
 # ── Side-effect imports: run DB migrations & seed admin ─────────
-import app.startup  # noqa: F401  – creates tables, migrates schema, seeds admin
+import app.startup
 
 # ── Config ──────────────────────────────────────────────────────
 from app.config import CORS_ORIGINS, limiter
 
 # ── Create app ──────────────────────────────────────────────────
-app = FastAPI(
+fastapi_app = FastAPI(
     title="AI Digital Forensics Assistant API",
     description=(
         "FastAPI service mapping database records, timeline builders, "
@@ -47,10 +47,10 @@ app = FastAPI(
 )
 
 # ── Middleware ───────────────────────────────────────────────────
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+fastapi_app.state.limiter = limiter
+fastapi_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-app.add_middleware(
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
@@ -68,10 +68,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        # CSP: allow inline scripts/styles needed by the SPA, and allow same-origin iframe previews
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "
@@ -82,30 +81,30 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app.add_middleware(SecurityHeadersMiddleware)
+fastapi_app.add_middleware(SecurityHeadersMiddleware)
 
 # ── Routers ─────────────────────────────────────────────────────
-from app.api.auth import router as auth_router
-from app.api.users import router as users_router
-from app.api.cases import router as cases_router
-from app.api.evidence import router as evidence_router
-from app.api.analysis import router as analysis_router
-from app.api.timeline import router as timeline_router
-from app.api.correlation import router as correlation_router
-from app.api.chat import router as chat_router
-from app.api.reports import router as reports_router
 from app.api.admin import router as admin_router
-from app.api.intelligence import router as intelligence_router
-from app.api.forensic_records import router as forensic_records_router
-from app.api.browser import router as browser_router
-from app.api.network import router as network_router
+from app.api.analysis import router as analysis_router
 from app.api.artifacts import router as artifacts_router
-from app.api.settings import router as settings_router
-from app.api.jobs import router as jobs_router
-from app.api.evaluation import router as evaluation_router
-from app.api.model_management import router as model_management_router
-from app.api.system import router as system_router
 from app.api.assets import router as assets_router
+from app.api.auth import router as auth_router
+from app.api.browser import router as browser_router
+from app.api.cases import router as cases_router
+from app.api.chat import router as chat_router
+from app.api.correlation import router as correlation_router
+from app.api.evaluation import router as evaluation_router
+from app.api.evidence import router as evidence_router
+from app.api.forensic_records import router as forensic_records_router
+from app.api.intelligence import router as intelligence_router
+from app.api.jobs import router as jobs_router
+from app.api.model_management import router as model_management_router
+from app.api.network import router as network_router
+from app.api.reports import router as reports_router
+from app.api.settings import router as settings_router
+from app.api.system import router as system_router
+from app.api.timeline import router as timeline_router
+from app.api.users import router as users_router
 
 for r in (
     auth_router,
@@ -130,9 +129,16 @@ for r in (
     system_router,
     assets_router,
 ):
-    app.include_router(r)
+    fastapi_app.include_router(r)
 
-# ── Frontend SPA (mount last so it doesn't shadow API routes) ───
-from app.api.assets import mount_frontend
+# ── Serve Frontend ──────────────────────────────────────────────
+import os
 
-mount_frontend(app)
+from fastapi.staticfiles import StaticFiles
+
+frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend")
+if os.path.exists(frontend_dir):
+    fastapi_app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+
+app = fastapi_app
+

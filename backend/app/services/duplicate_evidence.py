@@ -1,6 +1,7 @@
 """Duplicate evidence lookup helpers for ingestion workflows."""
-from app.models.evidence import Evidence
 from sqlalchemy import func
+
+from app.models.evidence import Evidence
 
 
 def find_duplicate_evidence(db, case_id: int, sha256_digest: str):

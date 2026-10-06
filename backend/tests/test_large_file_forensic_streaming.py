@@ -1,24 +1,20 @@
-import sys
-import os
 import struct
-import time
+import sys
 import tempfile
+import time
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.utils.memory_logger import get_process_memory_mb, log_memory_usage
 from app.services.network_forensics import (
     extract_pcap_artifacts,
-    is_suspicious_network_artifact,
     stream_pcap_artifact_chunks,
-    stream_pcap_packets,
 )
-from app.services.evidence_processor import stream_evtx_records
+from app.utils.memory_logger import get_process_memory_mb
 
 
 def generate_synthetic_pcap(file_path: Path, num_packets: int = 15_000, inject_corrupt_packet: bool = True):
     """Generate a large synthetic PCAP capture file on disk with optional corrupted packet injection."""
-    # PCAP Global Header (24 bytes)
     magic = b"\xd4\xc3\xb2\xa1" # Little-endian microseconds
     version_major = 2
     version_minor = 4
@@ -32,7 +28,6 @@ def generate_synthetic_pcap(file_path: Path, num_packets: int = 15_000, inject_c
     with file_path.open("wb") as stream:
         stream.write(global_hdr)
 
-        # 14-byte Ethernet + 20-byte IPv4 + 20-byte TCP header + 10-byte payload = 64 bytes total packet
         ether = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\x08\x00" # IPv4
         ip_hdr = b"\x45\x00\x00\x32\x00\x01\x00\x00\x40\x06\x00\x00\xc0\xa8\x01\x01\xc0\xa8\x01\x64" # 192.168.1.1 -> 192.168.1.100 (TCP)
         tcp_hdr = b"\x04\xd2\x00\x50\x00\x00\x00\x01\x00\x00\x00\x00\x50\x02\x20\x00\x00\x00\x00\x00" # Port 1234 -> 80
@@ -45,7 +40,6 @@ def generate_synthetic_pcap(file_path: Path, num_packets: int = 15_000, inject_c
 
         for i in range(num_packets):
             if inject_corrupt_packet and i == (num_packets // 2):
-                # Inject a malformed packet header with invalid length to test recovery
                 corrupt_hdr = struct.pack("<IIII", start_sec + i, i, 999999, 999999) # Length 999999 > snaplen
                 stream.write(corrupt_hdr)
                 stream.write(b"CORRUPTED_BYTES_STREAM")
@@ -75,18 +69,16 @@ def test_no_read_bytes_and_memory_boundedness():
         chunk_count = 0
         total_artifacts_extracted = 0
 
-        # Stream artifacts in batch chunks
         for chunk in stream_pcap_artifact_chunks(pcap_path, max_packets=20_000, chunk_size=1000):
             chunk_count += 1
             total_artifacts_extracted += len(chunk)
             current_mem = get_process_memory_mb()
-            # Bounded RAM assertion: memory RSS must not blow up
             assert current_mem < 250.0, f"Memory usage blew up to {current_mem:.2f} MB!"
 
         elapsed_time = time.time() - start_time
         final_mem = get_process_memory_mb()
 
-        print(f"  Streaming Complete!")
+        print("  Streaming Complete!")
         print(f"  Elapsed Time: {elapsed_time:.3f} seconds")
         print(f"  Total Chunks Processed: {chunk_count}")
         print(f"  Total Artifacts Extracted: {total_artifacts_extracted}")

@@ -1,6 +1,5 @@
 """Tests for upload_validation.py — filename sanitization and content validation."""
 import pytest
-from pathlib import Path
 
 from app.services.upload_validation import (
     UploadValidationError,
@@ -40,7 +39,7 @@ class TestSanitizeEvidenceFilename:
         assert suffix == "log"
 
     def test_bookmarks_extension_inferred(self):
-        name, suffix = sanitize_evidence_filename("Bookmarks")
+        _name, suffix = sanitize_evidence_filename("Bookmarks")
         assert suffix == "json"
 
     def test_empty_filename_rejected(self):

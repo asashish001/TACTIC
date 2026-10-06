@@ -1,9 +1,8 @@
-"""Static asset serving: logo, favicon, and frontend SPA mount."""
+"""Static asset serving: logo, favicon."""
 from pathlib import Path
 
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 router = APIRouter(tags=["Assets"])
 
@@ -21,10 +20,6 @@ def get_logo():
         custom = _ROOT_DIR / f"logo.{ext}"
         if custom.exists():
             return FileResponse(custom)
-
-    default = _ROOT_DIR / "frontend" / "assets" / "logo.png"
-    if default.exists():
-        return FileResponse(default)
 
     static_default = _ROOT_DIR / "static" / "logo.png"
     if static_default.exists():
@@ -44,19 +39,7 @@ def get_favicon():
         if custom_fav.exists():
             return FileResponse(custom_fav)
 
-    default = _ROOT_DIR / "frontend" / "assets" / "logo.png"
-    if default.exists():
-        return FileResponse(default)
-
     return {"error": "Favicon not found"}
 
 
-def mount_frontend(app) -> None:
-    """Mount the frontend SPA as a catch-all at ``/``.
 
-    Call this *after* all API routers are registered so it doesn't
-    shadow API routes.
-    """
-    frontend_dir = _ROOT_DIR / "frontend"
-    if frontend_dir.exists():
-        app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")

@@ -1,9 +1,10 @@
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth.security import RoleChecker, get_current_user, require_case_access
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_HEAVY
+from app.config import RATE_LIMIT_HEAVY, RATE_LIMIT_READ, limiter
 from app.database.session import get_db
 from app.models.case import Case
 from app.models.evidence import Evidence
@@ -14,7 +15,6 @@ from app.schemas.network import NetworkAnalysisResponse, NetworkArtifactResponse
 from app.services.forensic_audit import record_audit, record_custody
 from app.services.network_forensics import (
     extract_network_log_artifacts,
-    extract_pcap_artifacts,
     is_suspicious_network_artifact,
     stream_pcap_artifact_chunks,
 )
@@ -57,7 +57,6 @@ def analyze_network_evidence(request: Request,
             continue
 
         if evidence.extension in {"pcap", "pcapng"}:
-            # Memory-safe incremental streaming & database batch persistence
             for artifact_chunk in stream_pcap_artifact_chunks(file_path, chunk_size=chunk_size):
                 for artifact in artifact_chunk:
                     db.add(NetworkArtifact(case_id=case_id, evidence_id=evidence.id, **artifact))
@@ -75,7 +74,6 @@ def analyze_network_evidence(request: Request,
                             recommendation="Validate the endpoint, process owner, and related DNS or authentication activity before containment.",
                             details={"source": "network_forensics", "artifact_type": artifact["artifact_type"], "value": artifact.get("value")},
                         ))
-                # Batch commit to flush database buffer and keep RAM usage bounded
                 db.commit()
                 log_memory_usage(f"Persisted batch chunk ({len(artifact_chunk)} items)")
         else:

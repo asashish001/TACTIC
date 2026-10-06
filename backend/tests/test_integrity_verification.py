@@ -1,15 +1,13 @@
-from hashlib import sha256
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-import unittest
 
 from app.services.integrity_verification import (
     MISSING,
     TAMPERED,
     VERIFIED,
     IntegrityCheckReport,
-    IntegrityCheckResult,
     calculate_sha256,
     verify_case_evidence_integrity,
     verify_evidence_integrity,
@@ -117,7 +115,6 @@ class IntegrityCheckReportTests(unittest.TestCase):
     def test_report_captures_failed_items(self):
         evidence1 = self._evidence(id_=1, filename="good.log")
         evidence2 = self._evidence(id_=2, filename="bad.log")
-        # Tamper the second file after evidence2 was created
         self.path2.write_bytes(b"TAMPERED data")
         report = verify_case_evidence_integrity(self.db, [evidence1, evidence2], actor_id=2)
         self.assertFalse(report.all_passed)

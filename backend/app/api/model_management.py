@@ -1,14 +1,18 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
-from typing import Any
 
+from app.auth.security import RoleChecker, get_current_user
+from app.config import RATE_LIMIT_READ, RATE_LIMIT_WRITE, limiter
 from app.database.session import get_db
 from app.models.model_registry import ModelRegistryEntry
 from app.models.user import User
-from app.auth.security import get_current_user, RoleChecker
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_WRITE
-from app.services.model_registry_service import get_model_status_summary, seed_default_model_registry
+from app.services.model_registry_service import (
+    get_model_status_summary,
+    seed_default_model_registry,
+)
 
 router = APIRouter(prefix="/api/model", tags=["Model Management Module"])
 
@@ -117,7 +121,6 @@ def register_new_model(request: Request,
 ):
     """Register a new AI model in the database model registry."""
     if payload.is_active:
-        # Deactivate other active models of the same type
         db.query(ModelRegistryEntry).filter(ModelRegistryEntry.model_type == payload.model_type).update({"is_active": False})
 
     entry = ModelRegistryEntry(

@@ -2,7 +2,9 @@
 import datetime
 import logging
 from typing import Any
+
 from sqlalchemy.orm import Session
+
 from app.models.model_registry import ModelRegistryEntry
 
 logger = logging.getLogger("tactic.model_registry_service")

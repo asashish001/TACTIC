@@ -1,19 +1,22 @@
 import datetime
-from sqlalchemy import Column, Integer, String, DateTime
-from sqlalchemy.orm import relationship
-from app.database.session import Base, engine
+
+from sqlalchemy import DateTime, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database.session import Base
+
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(80), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    full_name = Column(String(120), nullable=False)
-    role = Column(String(20), nullable=False, default="investigator") # admin, investigator, student, viewer
-    timezone = Column(String(50), nullable=False, default="UTC")
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
-    token_version = Column(Integer, nullable=False, default=0)
-    refresh_token_jtis = Column(String(500), nullable=True, default="[]")  # JSON array of valid JTI strings
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="investigator")
+    timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="UTC")
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    refresh_token_jtis: Mapped[str | None] = mapped_column(String(500), nullable=True, default="[]")
 
-    cases = relationship("Case", back_populates="created_by", cascade="all, delete-orphan")
+    cases: Mapped[list["Case"]] = relationship("Case", back_populates="created_by", cascade="all, delete-orphan")

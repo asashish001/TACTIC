@@ -1,19 +1,18 @@
 """TACTIC Complete Multi-Source Forensic Timeline Reconstruction Engine."""
-import datetime
 import logging
 from typing import Any
+
 from sqlalchemy.orm import Session
 
-from app.models.evidence import Evidence
-from app.models.finding import Finding
-from app.models.extracted_artifact import ExtractedArtifact
-from app.models.browser_artifact import BrowserArtifact
-from app.models.network_artifact import NetworkArtifact
 from app.models.artifact_correlation import ArtifactCorrelation
+from app.models.browser_artifact import BrowserArtifact
+from app.models.evidence import Evidence
+from app.models.extracted_artifact import ExtractedArtifact
+from app.models.finding import Finding
+from app.models.network_artifact import NetworkArtifact
 from app.services.timezone_service import (
     format_for_timezone,
     normalize_to_utc,
-    safe_parse_timestamp,
 )
 
 logger = logging.getLogger("tactic.timeline_builder")
@@ -28,14 +27,12 @@ def build_forensic_timeline(
     raw_event_items = []
     seq_counter = 0
 
-    # Query correlation mapping for this case
     corr_records = db.query(ArtifactCorrelation).filter(ArtifactCorrelation.case_id == case_id).all()
     corr_map = {}
     for c in corr_records:
         corr_map[c.artifact_a_id] = {"score": c.score, "category": c.strength_category, "reason": c.reason, "group_id": f"group_{c.correlation_type.lower()}_{c.id}"}
         corr_map[c.artifact_b_id] = {"score": c.score, "category": c.strength_category, "reason": c.reason, "group_id": f"group_{c.correlation_type.lower()}_{c.id}"}
 
-    # 1. Fetch Evidence items & internal metadata (EVTX, EXIF, PDF, DOCX)
     evidence_items = db.query(Evidence).filter(Evidence.case_id == case_id).all()
     for item in evidence_items:
         seq_counter += 1
@@ -57,7 +54,6 @@ def build_forensic_timeline(
 
         meta = item.extracted_metadata or {}
         
-        # Image EXIF
         if meta.get("kind") == "image" and meta.get("timestamp"):
             seq_counter += 1
             raw_event_items.append({
@@ -81,7 +77,6 @@ def build_forensic_timeline(
                 }
             })
 
-        # PDF creation
         if meta.get("kind") == "pdf" and meta.get("creation_date"):
             seq_counter += 1
             raw_event_items.append({
@@ -100,7 +95,6 @@ def build_forensic_timeline(
                 "details": {"original_timestamp": meta.get("original_creation_date"), "title": meta.get("title")}
             })
 
-        # DOCX creation
         if meta.get("kind") == "docx" and meta.get("created"):
             seq_counter += 1
             raw_event_items.append({
@@ -119,7 +113,6 @@ def build_forensic_timeline(
                 "details": {"original_timestamp": meta.get("original_created"), "author": meta.get("author")}
             })
 
-        # EVTX log records
         if meta.get("kind") == "evtx" and "records" in meta:
             for rec_idx, record in enumerate(meta["records"]):
                 seq_counter += 1
@@ -146,7 +139,6 @@ def build_forensic_timeline(
                     "details": record.get("data", {})
                 })
 
-    # 2. Fetch ExtractedArtifacts (NLP / rule-based)
     ext_arts = db.query(ExtractedArtifact).filter(ExtractedArtifact.case_id == case_id).all()
     for art in ext_arts:
         seq_counter += 1
@@ -174,7 +166,6 @@ def build_forensic_timeline(
             }
         })
 
-    # 3. Fetch BrowserArtifacts
     browser_arts = db.query(BrowserArtifact).filter(BrowserArtifact.case_id == case_id).all()
     for b in browser_arts:
         seq_counter += 1
@@ -197,16 +188,15 @@ def build_forensic_timeline(
                 "domain": b.domain,
                 "title": b.title,
                 "visit_count": getattr(b, "visit_count", None),
-                "username_value": getattr(b, "username_value", None)
+                "username_value": getattr(b.details, "get", lambda k, d=None: d)("username_value") if hasattr(b, "details") else None
             }
         })
 
-    # 4. Fetch NetworkArtifacts
     net_arts = db.query(NetworkArtifact).filter(NetworkArtifact.case_id == case_id).all()
     for n in net_arts:
         seq_counter += 1
         net_id_key = f"net_{n.id}"
-        val = n.destination_ip or n.source_ip or n.domain or ""
+        val = n.destination_ip or n.source_ip or getattr(n, "value", "") or ""
         raw_event_items.append({
             "seq": seq_counter,
             "event_id": f"net_art_{n.id}",
@@ -230,7 +220,6 @@ def build_forensic_timeline(
             }
         })
 
-    # 5. Fetch Findings
     findings = db.query(Finding).filter(Finding.case_id == case_id).all()
     for f in findings:
         seq_counter += 1
@@ -256,12 +245,11 @@ def build_forensic_timeline(
             }
         })
 
-    # Normalize timestamps, convert to target timezone, attach correlation metadata, and sort
     processed_events = []
     suspicious_count = 0
 
-    for item in raw_event_items:
-        raw_ts = item["raw_timestamp"]
+    for event_item in raw_event_items:
+        raw_ts = event_item["raw_timestamp"]
         utc_dt, orig_str, orig_tz = normalize_to_utc(raw_ts) if raw_ts else (None, None, None)
 
         if utc_dt:
@@ -276,42 +264,40 @@ def build_forensic_timeline(
             tz_badge = "MISSING"
             sort_ts_val = float('inf') # Push missing timestamps safely to end
 
-        # Lookup correlation metadata
-        art_id = item["artifact_id"]
+        art_id = event_item["artifact_id"]
         c_info = corr_map.get(art_id, {})
         c_score = c_info.get("score")
         c_cat = c_info.get("category")
         c_grp = c_info.get("group_id")
 
-        if item["is_suspicious"]:
+        if event_item["is_suspicious"]:
             suspicious_count += 1
 
         event_entry = {
-            "event_id": item["event_id"],
-            "event": item["event"],
+            "event_id": event_item["event_id"],
+            "event": event_item["event"],
             "timestamp": iso_utc,
             "original_timestamp": orig_str or iso_utc or "MISSING",
             "original_timezone": orig_tz or "+00:00",
             "display_timestamp": disp_ts,
             "target_timezone": target_timezone,
             "timezone_badge": tz_badge,
-            "priority": item["priority"],
-            "is_suspicious": item["is_suspicious"],
-            "confidence": item["confidence"],
+            "priority": event_item["priority"],
+            "is_suspicious": event_item["is_suspicious"],
+            "confidence": event_item["confidence"],
             "correlation_score": c_score,
             "correlation_category": c_cat,
             "correlated_group_id": c_grp,
-            "evidence_id": item["evidence_id"],
-            "artifact_id": item["artifact_id"],
-            "artifact_type": item["artifact_type"],
-            "evidence_source": item["evidence_source"],
-            "provider": item["provider"],
-            "details": item["details"]
+            "evidence_id": event_item["evidence_id"],
+            "artifact_id": event_item["artifact_id"],
+            "artifact_type": event_item["artifact_type"],
+            "evidence_source": event_item.get("evidence_source"),
+            "provider": event_item.get("provider"),
+            "details": event_item.get("details")
         }
 
-        processed_events.append((sort_ts_val, item["seq"], event_entry))
+        processed_events.append((sort_ts_val, event_item["seq"], event_entry))
 
-    # Stable chronological sort by UTC timestamp, then by sequence insertion index
     processed_events.sort(key=lambda t: (t[0], t[1]))
     final_events = [t[2] for t in processed_events]
 

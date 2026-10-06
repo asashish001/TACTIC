@@ -8,14 +8,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.database.session import Base
-from app.models.forensic_job import ForensicJob
 from app.models.evidence import Evidence
+from app.models.forensic_job import ForensicJob
 from app.services.stuck_job_cleanup import (
-    find_stuck_jobs,
-    cleanup_stuck_job,
-    cleanup_all_stuck_jobs,
-    get_stuck_jobs_summary,
     STUCK_JOB_THRESHOLD_MINUTES,
+    cleanup_all_stuck_jobs,
+    cleanup_stuck_job,
+    find_stuck_jobs,
+    get_stuck_jobs_summary,
 )
 
 
@@ -38,7 +38,6 @@ def test_find_stuck_jobs_finds_old_processing_jobs(db_session):
     """Should find jobs stuck in PROCESSING for longer than threshold."""
     old_time = datetime.datetime.now(timezone.utc) - timedelta(minutes=STUCK_JOB_THRESHOLD_MINUTES + 10)
     
-    # Create a stuck job
     job = ForensicJob(
         id=_uuid.uuid4(),
         case_id=1,
@@ -147,7 +146,6 @@ def test_cleanup_stuck_job_updates_evidence_status(db_session):
     
     cleanup_stuck_job(db_session, job, actor_id=1)
     
-    # Refresh evidence
     db_session.refresh(evidence)
     assert evidence.integrity_status == "PROCESSING_FAILED"
 
@@ -156,7 +154,6 @@ def test_cleanup_all_stuck_jobs_returns_cleaned_jobs(db_session):
     """Should clean up all stuck jobs and return them."""
     old_time = datetime.datetime.now(timezone.utc) - timedelta(minutes=STUCK_JOB_THRESHOLD_MINUTES + 10)
     
-    # Create two stuck jobs
     job1 = ForensicJob(
         id=_uuid.uuid4(),
         case_id=1,
@@ -186,7 +183,6 @@ def test_get_stuck_jobs_summary_returns_statistics(db_session):
     """Should return summary statistics of stuck jobs."""
     old_time = datetime.datetime.now(timezone.utc) - timedelta(minutes=STUCK_JOB_THRESHOLD_MINUTES + 10)
     
-    # Create jobs stuck at different stages
     job1 = ForensicJob(
         id=_uuid.uuid4(),
         case_id=1,

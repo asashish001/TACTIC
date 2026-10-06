@@ -1,6 +1,5 @@
 """Tests for forensic_audit.py — audit trail and chain-of-custody recording."""
 import pytest
-from types import SimpleNamespace
 
 from app.services.forensic_audit import record_audit, record_custody
 

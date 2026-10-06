@@ -1,7 +1,9 @@
 """Persisted System Configuration and Anomaly Detection Threshold Service."""
 import logging
 from typing import Any
+
 from sqlalchemy.orm import Session
+
 from app.models.system_setting import SystemSetting
 from app.services.forensic_audit import record_audit
 
@@ -109,7 +111,6 @@ def update_system_settings(
         if val < 0.0 or val > 1.0:
             raise ValueError(f"Anomaly threshold must be between 0.0 and 1.0 (received: {val}).")
 
-        # Save to DB
         setting = db.query(SystemSetting).filter(SystemSetting.key == "anomaly_threshold").first()
         if not setting:
             setting = SystemSetting(
@@ -125,7 +126,7 @@ def update_system_settings(
         audit_details["new_anomaly_threshold"] = val
         audit_details["configurable_default"] = DEFAULT_ANOMALY_THRESHOLD
 
-    if "default_timezone" in payload and payload["default_timezone"]:
+    if payload.get("default_timezone"):
         tz_val = str(payload["default_timezone"]).strip()
         setting = db.query(SystemSetting).filter(SystemSetting.key == "default_timezone").first()
         if not setting:
@@ -141,7 +142,7 @@ def update_system_settings(
         audit_details["old_default_timezone"] = old_settings["default_timezone"]
         audit_details["new_default_timezone"] = tz_val
 
-    if "correlation_weights" in payload and payload["correlation_weights"]:
+    if payload.get("correlation_weights"):
         import json
         weights = payload["correlation_weights"]
         if not isinstance(weights, dict):
@@ -197,7 +198,6 @@ def update_system_settings(
 
     db.flush()
 
-    # Record durable audit trail whenever settings are updated
     if audit_details:
         msg_parts = []
         if "new_anomaly_threshold" in audit_details:

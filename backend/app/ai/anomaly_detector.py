@@ -1,8 +1,8 @@
+import logging
+
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.feature_extraction.text import TfidfVectorizer
-import logging
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +36,7 @@ class LogAnomalyDetector:
 
     def __init__(self):
         self.vectorizer = TfidfVectorizer(max_features=100, stop_words="english")
-        # Isolation Forest flags outliers with -1, normal with 1
         self.model = IsolationForest(contamination=0.15, random_state=42)
-        # Seed default fitting set to avoid unfitted errors
         self.default_logs = [
             "User Admin successful login from workstation WORK-001",
             "User Alice successful login from workstation WORK-002",
@@ -67,20 +65,16 @@ class LogAnomalyDetector:
         feature_names = self.vectorizer.get_feature_names_out()
         active_indices = np.where(x_row > 0)[0]
         
-        feature_contributions = []
         raw_deltas = []
 
         for idx in active_indices:
             feat_name = str(feature_names[idx])
-            # Ablate feature idx
             x_ablated = x_row.copy()
             x_ablated[idx] = 0.0
             score_ablated = float(self.model.decision_function([x_ablated])[0])
             
-            # Outliers have negative decision scores. Increasing score means setting feature to 0 reduced anomaly.
             delta = score_ablated - base_score
             if delta <= 0:
-                # Fallback to TF-IDF magnitude multiplied by base outlier severity
                 delta = float(x_row[idx] * (1.0 + abs(base_score)))
             raw_deltas.append((feat_name, delta, float(x_row[idx])))
 
@@ -103,7 +97,6 @@ class LogAnomalyDetector:
             if readable not in human_reasons:
                 human_reasons.append(readable)
 
-        # Sort top features by contribution percentage descending
         top_features.sort(key=lambda x: x["contribution_pct"], reverse=True)
         top_3 = top_features[:3]
 
@@ -140,7 +133,6 @@ class LogAnomalyDetector:
         if not log_records:
             return []
         
-        # Prepare text lines representing each log
         text_lines = []
         for r in log_records:
             event_id = r.get("event_id", 0)
@@ -148,19 +140,16 @@ class LogAnomalyDetector:
             data_str = " ".join([f"{k}:{v}" for k, v in r.get("data", {}).items()])
             text_lines.append(f"EventID {event_id} Provider {provider} Data {data_str}")
 
-        # If too few, append defaults to fit vectorizer vocabulary
         training_corpus = list(self.default_logs) + text_lines
         try:
             X_train = self.vectorizer.fit_transform(training_corpus).toarray()
             self.model.fit(X_train)
             
-            # Predict only on the ingested log lines
             X_predict = self.vectorizer.transform(text_lines).toarray()
             predictions = self.model.predict(X_predict) # -1 is outlier, 1 is normal
             anomaly_scores = self.model.decision_function(X_predict) # lower is more anomalous
         except Exception as exc:
             logger.warning("TF-IDF vectorization failed; using zero-vector fallback: %s", exc)
-            # Fallback if TF-IDF fails (e.g., empty vocabulary)
             predictions = np.ones(len(text_lines))
             anomaly_scores = np.ones(len(text_lines))
             X_predict = np.zeros((len(text_lines), 1))
@@ -171,13 +160,11 @@ class LogAnomalyDetector:
                 record = log_records[i]
                 confidence = float(np.clip(abs(score) * 2, 0.6, 0.95))
                 
-                # Compute Explainable AI (XAI) feature contributions
                 x_row = X_predict[i] if i < len(X_predict) else np.zeros(1)
                 xai_payload = self._explain_anomaly(x_row, float(score), confidence, threshold, record)
 
                 reason = xai_payload["summary"]
                 
-                # Check for critical Windows event ids to enrich recommendations
                 ev_id = record.get("event_id", 0)
                 recommendation = "Validate host network traffic logs and execute memory forensics."
                 if ev_id == 4625:

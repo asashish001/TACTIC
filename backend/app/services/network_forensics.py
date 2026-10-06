@@ -3,8 +3,8 @@ import datetime
 import logging
 import re
 import struct
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 from app.utils.memory_logger import log_memory_usage
 
@@ -190,7 +190,7 @@ def stream_pcapng_packets(
                 if block_type == 0x0A0D0D0A and len(block) >= 16:
                     endian = "<" if block[8:12] == b"\x4d\x3c\x2b\x1a" else ">"
                 elif block_type == 0x00000006 and len(block) >= 32:
-                    interface_id, high, low, captured_length, _ = struct.unpack(f"{endian}IIIII", block[8:28])
+                    _interface_id, high, low, captured_length, _ = struct.unpack(f"{endian}IIIII", block[8:28])
                     packet_start = 28
                     packet_end = packet_start + captured_length
                     if packet_end <= len(block) - 4:

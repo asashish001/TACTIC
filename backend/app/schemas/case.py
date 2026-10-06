@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import date, datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class CaseBase(BaseModel):
     case_number: str = Field(..., min_length=1, max_length=80)

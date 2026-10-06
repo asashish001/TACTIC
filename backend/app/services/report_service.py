@@ -7,10 +7,10 @@ Previously this logic lived inside ``app.api.reports.generate_report``
 which forced ``job_runner`` to import from the API layer and pass
 ``current_user=None`` (which crashed at ``require_case_access``).
 """
-import uuid
 import logging
-from pathlib import Path
+import uuid
 from dataclasses import dataclass
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -18,15 +18,13 @@ from app.models.case import Case
 from app.models.evidence import Evidence
 from app.models.finding import Finding
 from app.models.report import Report
-from app.schemas.report import ReportCreate
-from app.services.timeline_builder import extract_timeline_events
-from app.services.settings_service import get_system_settings
 from app.services.forensic_audit import record_audit, record_custody
-from app.utils.report_generator import build_pdf_report, build_docx_report
+from app.services.settings_service import get_system_settings
+from app.services.timeline_builder import extract_timeline_events
+from app.utils.report_generator import build_docx_report, build_pdf_report
 
 logger = logging.getLogger(__name__)
 
-# Base directory for report storage
 _REPORTS_BASE = Path(__file__).resolve().parent.parent / "reports"
 
 
@@ -122,7 +120,6 @@ def generate_report(
     filename = f"{case.case_number}_{uuid.uuid4().hex[:8]}.{normalised_fmt}"
     destination = report_dir / filename
 
-    # Path traversal check
     if report_dir not in destination.parents:
         raise ValueError("Invalid path escape detected.")
 

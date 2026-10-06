@@ -1,17 +1,16 @@
-import sys
 import datetime
-import time
+import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database.session import Base
-from app.models.user import User
 from app.models.case import Case
 from app.models.evidence import Evidence
-from app.models.forensic_job import ForensicJob
+from app.models.user import User
 from app.services.job_runner import create_job, execute_job_pipeline, retry_job
 
 
@@ -26,7 +25,6 @@ def test_job_lifecycle_and_stage_tracking():
     """Verify ForensicJob creation, 8-stage progress tracking, and COMPLETED status."""
     db = setup_in_memory_db()
 
-    # User & Case
     user = User(id=1, username="job_inv", full_name="Job Investigator", password_hash="hash", role="investigator")
     db.add(user)
     db.commit()
@@ -49,13 +47,11 @@ def test_job_lifecycle_and_stage_tracking():
     db.add(ev)
     db.commit()
 
-    # 1. Create job
     job = create_job(db, case_id=1, evidence_id=10, job_type="ANALYSIS_PIPELINE")
     assert job.status == "QUEUED"
     assert job.current_stage == "upload"
     assert job.progress_percent == 10.0
 
-    # 2. Execute pipeline in current thread (simulating worker thread)
     execute_job_pipeline(job.id, actor_id=1, db=db)
 
     db.refresh(job)
@@ -78,7 +74,6 @@ def test_failed_job_and_retry_mechanism():
     db.add(case)
     db.commit()
 
-    # Job targeting non-existent Evidence ID 9999 to trigger failure
     job = create_job(db, case_id=2, evidence_id=9999, job_type="ANALYSIS_PIPELINE")
     assert job.status == "QUEUED"
 
@@ -91,7 +86,6 @@ def test_failed_job_and_retry_mechanism():
     assert "error" in job.error_info
     assert "9999" in job.error_info["error"]
 
-    # Test retry mechanism
     retried_job = retry_job(db, job.id)
     assert retried_job.status == "QUEUED"
     assert retried_job.progress_percent == 10.0

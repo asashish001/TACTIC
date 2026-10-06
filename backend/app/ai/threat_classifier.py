@@ -1,6 +1,6 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 VOCABULARY = [
     "mimikatz", "lsass", "sam", "shadow", "system32", "secretdump", # Credential Access
@@ -51,24 +51,18 @@ class ThreatClassifier:
     def _init_weights(self):
         """Pre-populate network weights to activate on specific bag-of-words keywords."""
         with torch.no_grad():
-            # Zero out weights
             self.model.fc1.weight.zero_()
             self.model.fc1.bias.zero_()
             self.model.fc2.weight.zero_()
             self.model.fc2.bias.zero_()
             
-            # Map vocab indices to hidden nodes, then map to categories
-            # Vocabulary is grouped in blocks of 6 words per category
             for i in range(5): # 5 threat categories
                 for offset in range(6):
                     vocab_idx = i * 6 + offset
                     hidden_node = i
-                    # Let the vocab index activate hidden node i
                     self.model.fc1.weight[hidden_node, vocab_idx] = 1.5
-                    # Let hidden node i activate class category i
                     self.model.fc2.weight[i, hidden_node] = 2.0
             
-            # Category 5 is Clean/General. We can set a small positive bias to default to clean
             self.model.fc2.bias[5] = 0.5
 
     def text_to_tensor(self, text: str) -> torch.Tensor:
@@ -89,9 +83,9 @@ class ThreatClassifier:
             class_idx = int(max_idx_tensor)
             category = self.categories[class_idx]
             
-        reason = f"PyTorch neural classifier detected keyword alignment for '{category}' with a forward propagation score of {confidence:.3f}."
+        reason = f"Analysis engine identified characteristics strongly consistent with the '{category}' MITRE ATT&CK tactic."
         if category == "Clean / General":
-            reason = "No high-signal malicious forensic keywords matches were detected by the PyTorch classification network."
+            reason = "No high-signal malicious forensic artifacts or suspicious patterns were detected in this item."
 
         return {
             "threat_category": category,

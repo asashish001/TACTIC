@@ -79,7 +79,6 @@ def _extract_chromium(connection: sqlite3.Connection, tables: set[str]) -> list[
             artifacts.append(_artifact("chromium", "download", url=tab_url, timestamp=_chrome_time(started), details={"target_path": target_path, "total_bytes": total_bytes, "danger_type": danger_type}))
     if "cookies" in tables:
         for host, name, path, expires, secure in _safe_rows(connection, "SELECT host_key, name, path, expires_utc, is_secure FROM cookies LIMIT ?"):
-            # Cookie values are deliberately excluded from forensic storage.
             artifacts.append(_artifact("chromium", "cookie_metadata", url=f"https://{host}", timestamp=_chrome_time(expires), details={"name": name, "path": path, "secure": bool(secure)}))
     return artifacts
 
@@ -117,7 +116,6 @@ def _extract_chrome_bookmarks(path: Path) -> list[dict]:
 
 def _extract_firefox_logins(path: Path) -> list[dict]:
     payload = json.loads(path.read_text(encoding="utf-8", errors="replace"))
-    # Username/password ciphertext and plaintext fields are intentionally never read.
     return [_artifact("firefox", "saved_password_metadata", url=item.get("hostname"), timestamp=_firefox_time(item.get("timeLastUsed")), details={"username_field": item.get("usernameField"), "password_field": item.get("passwordField"), "times_used": item.get("timesUsed", 0)}) for item in payload.get("logins", [])]
 
 

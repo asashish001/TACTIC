@@ -1,15 +1,15 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.auth.security import get_current_user, require_case_access
+from app.config import RATE_LIMIT_READ, limiter
 from app.database.session import get_db
 from app.models.case import Case
 from app.models.user import User
-from app.auth.security import get_current_user, require_case_access
-from app.config import limiter, RATE_LIMIT_READ
 from app.services.timeline_builder import build_forensic_timeline
 from app.services.timezone_service import resolve_timezone
-import logging
-
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/timeline", tags=["Forensic Timeline Engine"])
@@ -19,7 +19,7 @@ def _resolve_target_tz(tz: str | None, current_user: User) -> str:
     target_tz = tz or getattr(current_user, "timezone", "UTC") or "UTC"
     try:
         resolve_timezone(target_tz)
-    except Exception as exc:
+    except Exception:
         target_tz = "UTC"
     return target_tz
 

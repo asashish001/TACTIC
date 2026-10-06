@@ -5,8 +5,7 @@ and comparison, while presenting as a Python UUID object to application code.
 """
 import uuid as _uuid
 
-from sqlalchemy import LargeBinary, String
-from sqlalchemy.types import TypeDecorator, CHAR
+from sqlalchemy.types import CHAR, TypeDecorator
 
 
 class UUID(TypeDecorator):
@@ -29,7 +28,6 @@ class UUID(TypeDecorator):
         if value is not None:
             if isinstance(value, _uuid.UUID):
                 return str(value)
-            # Accept string UUIDs and validate them
             try:
                 return str(_uuid.UUID(value))
             except (ValueError, AttributeError) as exc:

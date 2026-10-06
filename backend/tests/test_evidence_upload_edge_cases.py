@@ -8,12 +8,9 @@ Covers:
   - Duplicate evidence rejection
   - Missing required fields
 """
-import io
 import os
 import sys
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -31,7 +28,6 @@ class TestEvidenceUploadEdgeCases:
         )
         headers.update(admin_headers)
         resp = client.post("/api/evidence/upload", content=raw, headers=headers)
-        # Empty files may be rejected (400/422) or processed with 0-byte size.
         assert resp.status_code in (201, 400, 422), (
             f"Expected 201/400/422 for empty file, got {resp.status_code}: {resp.text}"
         )
@@ -45,8 +41,6 @@ class TestEvidenceUploadEdgeCases:
         )
         headers.update(admin_headers)
         resp = client.post("/api/evidence/upload", content=raw, headers=headers)
-        # Binary content in a .log file is rejected by content validation (NUL bytes)
-        # or accepted if no NUL bytes detected
         assert resp.status_code in (201, 422), f"Unexpected status: {resp.status_code}: {resp.text}"
         if resp.status_code == 201:
             data = resp.json()
@@ -62,7 +56,6 @@ class TestEvidenceUploadEdgeCases:
         )
         headers.update(admin_headers)
         resp = client.post("/api/evidence/upload", content=raw, headers=headers)
-        # 6MB is under the 500MB default limit, so it should succeed.
         assert resp.status_code == 201, f"6MB file should be accepted: {resp.text}"
 
     def test_upload_too_large_file_rejected(self, client, admin_headers, sample_case):
@@ -70,7 +63,6 @@ class TestEvidenceUploadEdgeCases:
         from app.api import evidence as evidence_module
         original_limit = evidence_module.MAX_UPLOAD_BYTES
         try:
-            # Set limit to 1KB for testing
             evidence_module.MAX_UPLOAD_BYTES = 1024
             content = b"X" * 2048
             raw, headers = build_multipart(
@@ -95,7 +87,6 @@ class TestEvidenceUploadEdgeCases:
         resp1 = client.post("/api/evidence/upload", content=raw1, headers=headers1)
         assert resp1.status_code == 201, f"First upload failed: {resp1.text}"
 
-        # Upload identical content again
         raw2, headers2 = build_multipart(
             sample_case.id, "unique_evidence_copy.txt", content,
         )

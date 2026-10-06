@@ -1,22 +1,21 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.ai.anomaly_detector import LogAnomalyDetector
+from app.ai.risk_analyzer import run_risk_analysis
 from app.database.session import Base
-from app.models.system_setting import SystemSetting
-from app.models.forensic_records import AuditLog
 from app.models.evidence import Evidence
-from app.models.finding import Finding
+from app.models.forensic_records import AuditLog
 from app.services.settings_service import (
     get_anomaly_threshold,
     get_system_settings,
     update_system_settings,
 )
-from app.ai.anomaly_detector import LogAnomalyDetector
-from app.ai.risk_analyzer import run_risk_analysis
 
 
 def setup_in_memory_db():
@@ -45,7 +44,6 @@ def test_update_settings_and_audit_logging():
     thresh = get_anomaly_threshold(db)
     assert thresh == 0.85
 
-    # Check Audit Log record
     logs = db.query(AuditLog).filter(AuditLog.action == "SETTINGS_UPDATED").all()
     assert len(logs) == 1
     assert "anomaly threshold" in logs[0].description
@@ -92,7 +90,6 @@ def test_anomaly_classification_with_configured_threshold():
         assert "anomaly_score" in xai
         assert "summary" in xai
 
-    # Test run_risk_analysis with DB session
     evidence = Evidence(
         id=1,
         case_id=10,

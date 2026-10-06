@@ -1,8 +1,8 @@
 """Persistent forensic-integrity, audit, and timeline records."""
 import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.session import Base
 
@@ -14,58 +14,58 @@ def utcnow():
 class EvidenceHash(Base):
     __tablename__ = "evidence_hashes"
 
-    id = Column(Integer, primary_key=True)
-    evidence_id = Column(Integer, ForeignKey("evidence.id", ondelete="CASCADE"), nullable=False, index=True)
-    algorithm = Column(String(16), nullable=False)
-    digest = Column(String(128), nullable=False, index=True)
-    calculated_at = Column(DateTime, default=utcnow, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    evidence_id: Mapped[int] = mapped_column(Integer, ForeignKey("evidence.id", ondelete="CASCADE"), nullable=False, index=True)
+    algorithm: Mapped[str] = mapped_column(String(16), nullable=False)
+    digest: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    calculated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
 
-    evidence = relationship("Evidence", back_populates="hashes")
+    evidence: Mapped["Evidence"] = relationship("Evidence", back_populates="hashes")
 
 
 class ChainOfCustody(Base):
     __tablename__ = "chain_of_custody"
 
-    id = Column(Integer, primary_key=True)
-    case_id = Column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True)
-    evidence_id = Column(Integer, ForeignKey("evidence.id", ondelete="CASCADE"), nullable=True, index=True)
-    actor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    action = Column(String(80), nullable=False)
-    description = Column(Text, nullable=False)
-    hash_snapshot = Column(String(64), nullable=True)
-    occurred_at = Column(DateTime, default=utcnow, nullable=False, index=True)
-    details = Column(JSON, nullable=False, default=dict)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    evidence_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("evidence.id", ondelete="CASCADE"), nullable=True, index=True)
+    actor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    hash_snapshot: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    occurred_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, nullable=False, index=True)
+    details: Mapped[dict | list] = mapped_column(JSON, nullable=False, default=dict)
 
-    case = relationship("Case", back_populates="chain_of_custody")
+    case: Mapped["Case"] = relationship("Case", back_populates="chain_of_custody")
 
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id = Column(Integer, primary_key=True)
-    actor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    case_id = Column(Integer, ForeignKey("cases.id", ondelete="SET NULL"), nullable=True, index=True)
-    evidence_id = Column(Integer, ForeignKey("evidence.id", ondelete="SET NULL"), nullable=True, index=True)
-    action = Column(String(100), nullable=False, index=True)
-    description = Column(Text, nullable=False)
-    occurred_at = Column(DateTime, default=utcnow, nullable=False, index=True)
-    details = Column(JSON, nullable=False, default=dict)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    case_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("cases.id", ondelete="SET NULL"), nullable=True, index=True)
+    evidence_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("evidence.id", ondelete="SET NULL"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, nullable=False, index=True)
+    details: Mapped[dict | list] = mapped_column(JSON, nullable=False, default=dict)
 
-    case = relationship("Case", back_populates="audit_logs")
+    case: Mapped["Case"] = relationship("Case", back_populates="audit_logs")
 
 
 class TimelineEvent(Base):
     __tablename__ = "timeline_events"
 
-    id = Column(Integer, primary_key=True)
-    case_id = Column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True)
-    evidence_id = Column(Integer, ForeignKey("evidence.id", ondelete="SET NULL"), nullable=True, index=True)
-    event = Column(Text, nullable=False)
-    timestamp = Column(String(80), nullable=False, index=True)
-    evidence_source = Column(String(255), nullable=False)
-    priority = Column(String(20), nullable=False, default="info")
-    event_type = Column(String(60), nullable=False, default="derived")
-    details = Column(JSON, nullable=False, default=dict)
-    generated_at = Column(DateTime, default=utcnow, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    evidence_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("evidence.id", ondelete="SET NULL"), nullable=True, index=True)
+    event: Mapped[str] = mapped_column(Text, nullable=False)
+    timestamp: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    evidence_source: Mapped[str] = mapped_column(String(255), nullable=False)
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="info")
+    event_type: Mapped[str] = mapped_column(String(60), nullable=False, default="derived")
+    details: Mapped[dict | list] = mapped_column(JSON, nullable=False, default=dict)
+    generated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
 
-    case = relationship("Case", back_populates="timeline_events")
+    case: Mapped["Case"] = relationship("Case", back_populates="timeline_events")

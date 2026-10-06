@@ -1,5 +1,10 @@
 """Helpers that append durable forensic accountability records."""
-from app.models.forensic_records import AuditLog, ChainOfCustody, EvidenceHash, TimelineEvent
+from app.models.forensic_records import (
+    AuditLog,
+    ChainOfCustody,
+    EvidenceHash,
+    TimelineEvent,
+)
 from app.services.timeline_builder import extract_timeline_events
 
 

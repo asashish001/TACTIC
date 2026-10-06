@@ -1,16 +1,15 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import numpy as np
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database.session import Base
-from app.models.evidence import Evidence
-from app.models.finding import Finding
 from app.ai.anomaly_detector import LogAnomalyDetector
 from app.ai.risk_analyzer import run_risk_analysis
+from app.database.session import Base
+from app.models.evidence import Evidence
 from app.utils.report_generator import build_pdf_report
 
 
@@ -38,7 +37,6 @@ def test_explain_anomaly_structure():
         assert "xai_explanation" in details
         xai = details["xai_explanation"]
         
-        # Verify required XAI schema fields
         assert "anomaly_score" in xai
         assert "threshold" in xai
         assert "top_contributing_features" in xai
@@ -47,13 +45,11 @@ def test_explain_anomaly_structure():
         assert "evidence_reference" in xai
         assert "explanation_trace" in xai
 
-        # Verify top features and percentages
         top_feats = xai["top_contributing_features"]
         assert len(top_feats) > 0
         total_pct = sum(f["contribution_pct"] for f in top_feats)
         assert 95.0 <= total_pct <= 105.0, f"Contribution percentages should sum close to 100%, got {total_pct}"
 
-        # Verify trace proof metadata
         trace = xai["explanation_trace"]
         assert trace["method"] == "IsolationForest-FeatureAblation-Attribution"
         assert "trace_id" in trace
@@ -94,7 +90,6 @@ def test_end_to_end_xai_and_report():
 
     db.commit()
 
-    # Verify PDF report generation with XAI payload
     case_payload = {
         "case": {"case_number": "CASE-XAI-1", "name": "XAI Test Case", "description": "Testing XAI reports", "incident_date": "2026-08-18"},
         "settings": {"anomaly_threshold": 0.80, "anomaly_threshold_label": "Configurable Default (0.80)"},

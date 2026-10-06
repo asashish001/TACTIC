@@ -1,18 +1,24 @@
 import math
-from pydantic import BaseModel
 from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.auth.security import (
+    RoleChecker,
+    decode_token,
+    get_current_user,
+    require_case_access,
+)
+from app.config import RATE_LIMIT_READ, RATE_LIMIT_WRITE, limiter
 from app.database.session import get_db
 from app.models.case import Case
 from app.models.report import Report
 from app.models.user import User
 from app.schemas.report import ReportCreate, ReportResponse
-from app.auth.security import get_current_user, require_case_access, RoleChecker, decode_token
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_WRITE
-from app.services.forensic_audit import record_audit, record_custody
+from app.services.forensic_audit import record_audit
 from app.services.report_service import generate_report as _generate_report
 
 router = APIRouter(prefix="/api/report", tags=["Forensic Reports Engine"])
@@ -79,7 +85,7 @@ def generate_report(request: Request,
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed compiling report document: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed compiling report document: {e!s}")
 
     return result.report
 
@@ -108,7 +114,7 @@ def list_reports(request: Request,
     total = db.query(Report).filter(Report.case_id == case_id).count()
     total_pages = max(1, math.ceil(total / page_size))
     items = db.query(Report).filter(Report.case_id == case_id).order_by(Report.generated_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return PaginatedReportResponse(items=items, total=total, page=page, page_size=page_size, total_pages=total_pages)
+    return PaginatedReportResponse(items=items, total=total, page=page, page_size=page_size, total_pages=total_pages)  # type: ignore[arg-type]
 
 @router.get("/download/{report_id}")
 @limiter.limit(RATE_LIMIT_READ)
@@ -128,7 +134,6 @@ def download_report(request: Request,
     base_dir = Path(__file__).resolve().parent.parent.parent
     file_path = (base_dir / "app" / "reports" / report.stored_path).resolve()
     
-    # Traversal escape verification
     if (base_dir / "app" / "reports") not in file_path.parents or not file_path.is_file():
         raise HTTPException(status_code=404, detail="The report file could not be located on disk.")
     record_audit(db, "report_downloaded", f"Downloaded report '{report.filename}'.", actor_id=current_user.id,

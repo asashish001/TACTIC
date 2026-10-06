@@ -11,9 +11,9 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.ai.registry import get_nlp_extractor
 from app.models.evidence import Evidence
 from app.models.extracted_artifact import ExtractedArtifact
-from app.ai.registry import get_nlp_extractor
 from app.services.integrity_verification import evidence_disk_path
 
 logger = logging.getLogger(__name__)
@@ -23,9 +23,9 @@ def extract_text_content(evidence: Evidence, file_path: Path) -> str:
     """Extract raw text representations from evidence file or metadata
     for NLP analysis."""
     text_chunks = [
-        f"Filename: {evidence.filename} "
+        (f"Filename: {evidence.filename} "
         f"Extension: {evidence.extension} "
-        f"MIME: {evidence.detected_mime}"
+        f"MIME: {evidence.detected_mime}")
     ]
 
     meta = evidence.extracted_metadata or {}
@@ -34,7 +34,6 @@ def extract_text_content(evidence: Evidence, file_path: Path) -> str:
 
     if file_path.is_file():
         try:
-            # Stream first 100KB without loading entire file into memory
             with file_path.open("rb") as f:
                 raw = f.read(100_000)
             decoded = raw.decode("utf-8", errors="replace")
@@ -57,19 +56,16 @@ def extract_and_store_artifacts(evidence: Evidence, db: Session) -> list[Extract
     file_path = evidence_disk_path(evidence)
     evidence_text = extract_text_content(evidence, file_path)
 
-    # 1. Run NLP Extractor Engine
     raw_artifacts = get_nlp_extractor().extract_artifacts(
         text=evidence_text,
         case_id=evidence.case_id,
         evidence_id=evidence.id,
     )
 
-    # 2. Clear old extracted artifacts for this evidence item
     db.query(ExtractedArtifact).filter(
         ExtractedArtifact.evidence_id == evidence.id
     ).delete()
 
-    # 3. Save new ExtractedArtifact records
     db_artifacts = []
     for item in raw_artifacts:
         artifact = ExtractedArtifact(

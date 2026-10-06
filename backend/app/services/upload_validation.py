@@ -83,13 +83,11 @@ def validate_evidence_content(file_path: Path, extension: str) -> str:
             with Image.open(file_path) as image:
                 image.verify()
         elif extension == "json":
-            # Stream-parse JSON to avoid loading entire file
             with file_path.open("r", encoding="utf-8") as f:
                 json.load(f)
         elif extension == "xml":
             ElementTree.parse(file_path)
         elif extension in TEXT_EXTENSIONS:
-            # Read only first 8KB to check for NUL bytes
             with file_path.open("rb") as f:
                 sample = f.read(8192)
             if b"\x00" in sample:

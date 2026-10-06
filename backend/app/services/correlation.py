@@ -1,13 +1,14 @@
 import json
+import logging
 import re
+
 from sqlalchemy.orm import Session
+
+from app.models.artifact_correlation import ArtifactCorrelation
 from app.models.evidence import Evidence
 from app.models.finding import Finding
-from app.models.artifact_correlation import ArtifactCorrelation
-from app.services.correlation_engine import correlate_case_artifacts, categorize_score
+from app.services.correlation_engine import correlate_case_artifacts
 from app.services.settings_service import get_correlation_config
-import logging
-
 
 logger = logging.getLogger(__name__)
 IP_REGEX = re.compile(r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b")
@@ -60,7 +61,6 @@ def build_correlation_graph(case_id: int, db: Session) -> dict:
                 "color": get_category_color(category)
             })
 
-    # 1. Fetch case evidence
     evidence_items = db.query(Evidence).filter(Evidence.case_id == case_id).all()
     if not evidence_items:
         return {"nodes": [], "edges": []}
@@ -73,28 +73,24 @@ def build_correlation_graph(case_id: int, db: Session) -> dict:
         add_node(ev_node_id, item.filename, "evidence")
         add_edge(case_node_id, ev_node_id, "contains", score=1.0, category="Strong", reason="Case evidence container")
 
-        # Hashes
         hash_node_id = f"hash_{item.sha256[:8]}"
         add_node(hash_node_id, f"SHA256: {item.sha256[:8]}...", "hash")
         add_edge(ev_node_id, hash_node_id, "hashes_to", score=1.0, category="Strong", reason="SHA256 cryptographic hash")
 
         meta_str = json_to_str(item.extracted_metadata)
         
-        # Match IPs
         ips = set(IP_REGEX.findall(meta_str))
         for ip in ips:
             ip_node_id = f"ip_{ip}"
             add_node(ip_node_id, ip, "ip")
             add_edge(ev_node_id, ip_node_id, "references_ip", score=0.85, category="Strong", reason=f"Extracted IP endpoint {ip}")
 
-        # Match Emails
         emails = set(EMAIL_REGEX.findall(meta_str))
         for email in emails:
             email_node_id = f"email_{email}"
             add_node(email_node_id, email, "email")
             add_edge(ev_node_id, email_node_id, "contains_email", score=0.85, category="Strong", reason=f"Extracted Email {email}")
 
-        # Log specific fields (Usernames)
         meta = item.extracted_metadata
         if meta.get("kind") == "evtx" and "records" in meta:
             for record in meta["records"]:
@@ -112,7 +108,6 @@ def build_correlation_graph(case_id: int, db: Session) -> dict:
                 add_node(art_node_id, f"{art.artifact_type}: {art.value[:25]}", art.artifact_type.lower())
                 add_edge(ev_node_id, art_node_id, f"extracted_{art.artifact_type.lower()}", score=0.75, category="Strong", reason=f"Extracted {art.artifact_type}")
 
-    # 2. Fetch case findings
     findings = db.query(Finding).filter(Finding.case_id == case_id).all()
     for finding in findings:
         finding_node_id = f"finding_{finding.id}"
@@ -123,7 +118,6 @@ def build_correlation_graph(case_id: int, db: Session) -> dict:
         else:
             add_edge(case_node_id, finding_node_id, "affects", score=0.80, category="Strong", reason="AI finding affects case")
 
-    # 3. Query computed ArtifactCorrelation records (or build them if empty)
     correlations = db.query(ArtifactCorrelation).filter(ArtifactCorrelation.case_id == case_id).all()
     if not correlations:
         cfg = get_correlation_config(db)

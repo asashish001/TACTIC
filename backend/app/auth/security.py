@@ -4,23 +4,22 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
+
 import bcrypt
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
 
 from app.database.session import get_db
 from app.models.user import User
-from app.schemas.auth import TokenData
 
 logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 # ── Secret key validation ──
-# The hardcoded fallback is INSECURE and must never be used in production.
 _INSECURE_DEFAULTS = {
     "prod-only-secure-key-11223344",
     "development-only-change-this-secret",
@@ -28,8 +27,6 @@ _INSECURE_DEFAULTS = {
 }
 _secret = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY", "")
 if not _secret or _secret in _INSECURE_DEFAULTS:
-    # Auto-generate a ephemeral key for this process so the server can still
-    # start in development, but invalidate all existing tokens on restart.
     _secret = secrets.token_hex(32)
     logger.warning(
         "No secure JWT_SECRET_KEY configured. A random key was generated "
@@ -112,7 +109,6 @@ def get_current_user(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    # Invalidate tokens issued before a password change or admin revocation
     if payload.get("ver", 0) != user.token_version:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth.security import RoleChecker, get_current_user, require_case_access
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_HEAVY
+from app.config import RATE_LIMIT_HEAVY, RATE_LIMIT_READ, limiter
 from app.database.session import get_db
 from app.models.browser_artifact import BrowserArtifact
 from app.models.case import Case
@@ -12,7 +12,10 @@ from app.models.evidence import Evidence
 from app.models.finding import Finding
 from app.models.user import User
 from app.schemas.browser import BrowserAnalysisResponse, BrowserArtifactResponse
-from app.services.browser_forensics import extract_browser_artifacts, is_suspicious_browser_artifact
+from app.services.browser_forensics import (
+    extract_browser_artifacts,
+    is_suspicious_browser_artifact,
+)
 from app.services.forensic_audit import record_audit, record_custody
 
 router = APIRouter(prefix="/api/browser", tags=["Browser Forensics"])

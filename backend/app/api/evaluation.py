@@ -1,14 +1,18 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
-from typing import Any
 
+from app.auth.security import RoleChecker, get_current_user
+from app.config import RATE_LIMIT_HEAVY, RATE_LIMIT_READ, limiter
 from app.database.session import get_db
 from app.models.model_evaluation import ModelEvaluationRun
 from app.models.user import User
-from app.auth.security import get_current_user, RoleChecker
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_HEAVY
-from app.services.model_evaluator import evaluate_anomaly_detector, evaluate_nlp_extractor
+from app.services.model_evaluator import (
+    evaluate_anomaly_detector,
+    evaluate_nlp_extractor,
+)
 
 router = APIRouter(prefix="/api/evaluation", tags=["Model Evaluation Module"])
 

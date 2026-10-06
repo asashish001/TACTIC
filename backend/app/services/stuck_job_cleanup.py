@@ -10,13 +10,12 @@ from datetime import timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models.forensic_job import ForensicJob
 from app.models.evidence import Evidence
+from app.models.forensic_job import ForensicJob
 from app.services.forensic_audit import record_audit
 
 logger = logging.getLogger("tactic.cleanup")
 
-# Jobs stuck in PROCESSING for longer than this are considered stuck
 STUCK_JOB_THRESHOLD_MINUTES = 30
 
 
@@ -51,7 +50,6 @@ def cleanup_stuck_job(db: Session, job: ForensicJob, actor_id: int | None = None
     Returns:
         Updated ForensicJob
     """
-    # Mark job as failed with explanatory message
     job.status = "FAILED"
     job.stage_message = (
         f"Job timed out while processing at stage '{job.current_stage}'. "
@@ -66,7 +64,6 @@ def cleanup_stuck_job(db: Session, job: ForensicJob, actor_id: int | None = None
     }
     job.completed_at = datetime.datetime.now(timezone.utc)
     
-    # If this job was for specific evidence, mark it as failed
     if job.evidence_id:
         evidence = db.query(Evidence).filter(Evidence.id == job.evidence_id).first()
         if evidence:
@@ -81,7 +78,6 @@ def cleanup_stuck_job(db: Session, job: ForensicJob, actor_id: int | None = None
                 details={"job_id": str(job.id), "stage_at_failure": job.current_stage}
             )
     
-    # Audit log the cleanup
     record_audit(
         db,
         "STUCK_JOB_CLEANUP",

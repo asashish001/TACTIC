@@ -1,22 +1,33 @@
+import json
 import logging
 import os
-import json
 import re
-from urllib.request import Request as UrlRequest, urlopen
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.auth.security import get_current_user, require_case_access
+from app.config import RATE_LIMIT_AI_CHAT, limiter
 from app.database.session import get_db
 from app.models.case import Case
 from app.models.evidence import Evidence
 from app.models.finding import Finding
 from app.models.user import User
-from app.auth.security import get_current_user, require_case_access
-from app.config import limiter, RATE_LIMIT_AI_CHAT
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["AI Chat Assistant"])
+
+
+_embedder = None
+def get_embedder():
+    global _embedder
+    if _embedder is None:
+        from sentence_transformers import SentenceTransformer
+        _embedder = SentenceTransformer('Snowflake/snowflake-arctic-embed-xs')
+    return _embedder
 
 
 class ChatRequest(BaseModel):
@@ -32,7 +43,6 @@ def detect_hash_signatures(text: str) -> list[dict]:
     """
     detected = []
     seen = set()
-    # Find contiguous hexadecimal word tokens
     tokens = re.findall(r"\b[a-fA-F0-9]+\b", text)
     for token in tokens:
         val = token.lower()
@@ -56,10 +66,36 @@ def detect_hash_signatures(text: str) -> list[dict]:
     return detected
 
 
-def build_rag_context(case: Case, db: Session) -> dict:
-    """Build factual context payload to bound the LLM answer."""
-    evidence = db.query(Evidence).filter(Evidence.case_id == case.id).limit(50).all()
-    findings = db.query(Finding).filter(Finding.case_id == case.id).order_by(Finding.risk_score.desc()).limit(50).all()
+def build_rag_context(case: Case, db: Session, question: str) -> dict:
+    """Build factual context payload using semantic search via Snowflake arctic-embed."""
+    import torch
+    from sentence_transformers.util import cos_sim
+    
+    embedder = get_embedder()
+    query_prefix = "Represent this sentence for searching relevant passages: "
+    query_embedding = embedder.encode(query_prefix + question, convert_to_tensor=True)
+
+    all_evidence = db.query(Evidence).filter(Evidence.case_id == case.id).limit(1000).all()
+    all_findings = db.query(Finding).filter(Finding.case_id == case.id).limit(1000).all()
+
+    top_evidence = all_evidence
+    top_findings = all_findings
+
+    if all_evidence:
+        ev_texts = [f"{e.filename} {e.detected_mime} {e.sha256}" for e in all_evidence]
+        ev_embeddings = embedder.encode(ev_texts, convert_to_tensor=True)
+        ev_scores = cos_sim(query_embedding, ev_embeddings)[0]
+        top_k_ev = min(20, len(all_evidence))
+        top_ev_indices = torch.topk(ev_scores, k=top_k_ev).indices.tolist()
+        top_evidence = [all_evidence[i] for i in top_ev_indices]
+
+    if all_findings:
+        find_texts = [f"{f.title} {f.threat_category} {f.reason} {f.severity}" for f in all_findings]
+        find_embeddings = embedder.encode(find_texts, convert_to_tensor=True)
+        find_scores = cos_sim(query_embedding, find_embeddings)[0]
+        top_k_find = min(20, len(all_findings))
+        top_find_indices = torch.topk(find_scores, k=top_k_find).indices.tolist()
+        top_findings = [all_findings[i] for i in top_find_indices]
 
     return {
         "case": {
@@ -75,22 +111,20 @@ def build_rag_context(case: Case, db: Session) -> dict:
                 "sha1": getattr(item, "sha1", None),
                 "md5": getattr(item, "md5", None),
             }
-            for item in evidence
+            for item in top_evidence
         ],
         "findings": [
             {"title": item.title, "severity": item.severity, "reason": item.reason, "category": item.threat_category}
-            for item in findings
+            for item in top_findings
         ]
     }
 
 
 def validate_response(answer: str, context: dict) -> tuple:
     """Post-response validation: check for fabricated entities and add grounding metadata."""
-    # Extract entities mentioned in the response
     mentioned_ips = set(re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', answer))
     mentioned_domains = set(re.findall(r'\b[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}\b', answer))
 
-    # Build known entity set from context
     known_ips = set()
     known_filenames = set()
 
@@ -107,7 +141,6 @@ def validate_response(answer: str, context: dict) -> tuple:
         for ip in re.findall(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', reason):
             known_ips.add(ip)
 
-    # Check for fabrication
     fabricated_ips = mentioned_ips - known_ips
     fabricated_domains = mentioned_domains - {"example.com", "localhost"} - {d for d in mentioned_domains if any(d.endswith(ext) for ext in [".log", ".txt", ".csv", ".json", ".pdf", ".docx", ".exe", ".dll", ".evtx", ".pcap", ".png", ".jpg"])}
 
@@ -117,10 +150,8 @@ def validate_response(answer: str, context: dict) -> tuple:
     if fabricated_domains:
         warnings.append("Response mentions domain(s) not found in case evidence: " + ", ".join(fabricated_domains))
 
-    # Check if disclaimer is present
     has_disclaimer = "verified by the investigator" in answer.lower() or "available case data" in answer.lower()
 
-    # Calculate grounding score
     total_entities = len(mentioned_ips) + len(mentioned_domains)
     fabricated_count = len(fabricated_ips) + len(fabricated_domains)
     grounding_score = max(0, 1.0 - (fabricated_count / max(total_entities, 1))) if total_entities > 0 else 1.0
@@ -133,11 +164,9 @@ def validate_response(answer: str, context: dict) -> tuple:
         "warnings": warnings
     }
 
-    # Append warning if fabrication detected
     if warnings:
         answer += "\n\n[SYSTEM WARNING: " + "; ".join(warnings) + ". Verify these claims against case evidence.]"
 
-    # Ensure disclaimer is present
     if not has_disclaimer:
         answer += "\n\n[This analysis is based on available case data and should be verified by the investigator.]"
 
@@ -156,7 +185,6 @@ def build_local_fallback(context: dict, question: str) -> str:
         "Preserved Evidence Files: " + str(len(evidence))
     ]
 
-    # Auto-detect hash signatures in user query (32 chars: MD5, 40 chars: SHA-1, 64 chars: SHA-256)
     detected_hashes = detect_hash_signatures(question)
     if detected_hashes:
         lines.append("\n[CRYPTOGRAPHIC HASH SIGNATURE AUTO-DETECTION]")
@@ -171,7 +199,6 @@ def build_local_fallback(context: dict, question: str) -> str:
             elif h_type == "SHA-256":
                 lines.append("    Cryptographic Standard: SHA-256 is collision-resistant and suitable for definitive identity verification.")
 
-            # Search for matching evidence in current case
             matches = [
                 ev for ev in evidence
                 if (ev.get("sha256") and ev.get("sha256").lower() == h_val)
@@ -218,7 +245,6 @@ def fetch_ai_response(context: dict, question: str) -> tuple:
         logger.warning("AI_PROVIDER is set to 'openai' but OPENAI_API_KEY is not configured in .env")
         return build_local_fallback(context, question), "local (OPENAI_API_KEY not configured in .env)"
 
-    # Auto-detect hash signatures in user query for LLM context injection
     detected_hashes = detect_hash_signatures(question)
     hash_context_section = ""
     if detected_hashes:
@@ -290,7 +316,6 @@ def fetch_ai_response(context: dict, question: str) -> tuple:
         elif provider == "gemini" and os.getenv("GEMINI_API_KEY"):
             api_key = os.environ["GEMINI_API_KEY"].strip()
             configured_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip() or "gemini-3.5-flash-lite"
-            # Try configured model first, then ultra-fast active fallbacks
             models_to_try = [configured_model]
             for fb_model in ("gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.6-flash"):
                 if fb_model not in models_to_try:
@@ -379,9 +404,8 @@ def ask_assistant(request: Request,
         raise HTTPException(status_code=404, detail="Case not found.")
     require_case_access(case, current_user)
 
-    context = build_rag_context(case, db)
+    context = build_rag_context(case, db, payload.question)
     answer, provider = fetch_ai_response(context, payload.question)
-    # Run validation on final answer
     answer, validation_meta = validate_response(answer, context)
     detected_hashes = detect_hash_signatures(payload.question)
     return {

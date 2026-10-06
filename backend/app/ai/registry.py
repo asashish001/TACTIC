@@ -22,9 +22,9 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.ai.threat_classifier import ThreatClassifier
     from app.ai.anomaly_detector import LogAnomalyDetector
     from app.ai.nlp_extractor import NLPArtifactExtractor
+    from app.ai.threat_classifier import ThreatClassifier
 
 logger = logging.getLogger(__name__)
 

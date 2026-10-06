@@ -1,13 +1,15 @@
 """Tests for UUID type validation in the database types module."""
 import uuid
+
 import pytest
-from sqlalchemy import create_engine, Column, String
+from sqlalchemy import Column, String, create_engine
 from sqlalchemy.orm import Session
+
 from app.database.session import Base
 from app.database.types import UUID
 
 
-class TestUUIDModel(Base):
+class MockUUIDModel(Base):
     """Test model with UUID primary key."""
     __tablename__ = "test_uuid_model"
     id = Column(UUID(), primary_key=True, default=UUID.create_default())
@@ -21,11 +23,11 @@ def test_uuid_stores_and_retrieves_correctly():
 
     with Session(engine) as session:
         test_uuid = uuid.uuid4()
-        record = TestUUIDModel(id=test_uuid, name="test")
+        record = MockUUIDModel(id=test_uuid, name="test")
         session.add(record)
         session.commit()
 
-        retrieved = session.query(TestUUIDModel).first()
+        retrieved = session.query(MockUUIDModel).first()
         assert retrieved.id == test_uuid
         assert isinstance(retrieved.id, uuid.UUID)
 
@@ -38,9 +40,8 @@ def test_uuid_rejects_invalid_format():
     Base.metadata.create_all(bind=engine)
 
     with Session(engine) as session:
-        # Invalid UUID should raise an error
         with pytest.raises(StatementError):
-            record = TestUUIDModel(id="not-a-valid-uuid", name="test")
+            record = MockUUIDModel(id="not-a-valid-uuid", name="test")
             session.add(record)
             session.commit()
 
@@ -52,12 +53,11 @@ def test_uuid_accepts_string_uuid():
 
     with Session(engine) as session:
         test_uuid = uuid.uuid4()
-        # Pass as string
-        record = TestUUIDModel(id=str(test_uuid), name="test")
+        record = MockUUIDModel(id=str(test_uuid), name="test")
         session.add(record)
         session.commit()
 
-        retrieved = session.query(TestUUIDModel).first()
+        retrieved = session.query(MockUUIDModel).first()
         assert retrieved.id == test_uuid
         assert isinstance(retrieved.id, uuid.UUID)
 
@@ -68,8 +68,8 @@ def test_uuid_default_generates_unique_values():
     Base.metadata.create_all(bind=engine)
 
     with Session(engine) as session:
-        record1 = TestUUIDModel(name="first")
-        record2 = TestUUIDModel(name="second")
+        record1 = MockUUIDModel(name="first")
+        record2 = MockUUIDModel(name="second")
         session.add(record1)
         session.add(record2)
         session.commit()

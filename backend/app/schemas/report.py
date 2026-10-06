@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class ReportBase(BaseModel):
     filename: str = Field(..., max_length=255)

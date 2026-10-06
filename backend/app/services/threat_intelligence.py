@@ -1,5 +1,6 @@
 """Evidence-to-CVE and IOC correlation helpers for the FastAPI intelligence module."""
 import json
+import logging
 import os
 import re
 from functools import lru_cache
@@ -7,8 +8,6 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from app.models.evidence import Evidence
-import logging
-
 
 logger = logging.getLogger(__name__)
 SOFTWARE_PATTERN = re.compile(
@@ -27,8 +26,6 @@ def remote_lookups_enabled() -> bool:
 
 def evidence_text(evidence: Evidence) -> str:
     metadata = evidence.extracted_metadata or {}
-    # Normalize filename separators so names such as chrome_120.0.1.exe can
-    # contribute a software/version candidate without altering stored evidence.
     parts = [evidence.filename.replace("_", " ").replace("-", " "), evidence.detected_mime, evidence.extension]
     for key in ("sample", "software", "producer", "creator", "author", "raw_exif"):
         value = metadata.get(key)

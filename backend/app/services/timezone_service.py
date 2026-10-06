@@ -5,13 +5,12 @@ PCAP network traffic, and forensic events are normalized and stored internally
 in UTC while retaining original timestamps and source timezone offsets.
 """
 import datetime
-from datetime import timezone, timedelta
 import os
 import re
+from datetime import timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-# Common Forensic & Timezone Aliases
 TIMEZONE_ALIASES = {
     "IST": "Asia/Kolkata",
     "EST": "America/New_York",
@@ -44,7 +43,6 @@ def resolve_timezone(tz_str: str | None) -> datetime.tzinfo:
     if clean_tz in TIMEZONE_ALIASES:
         clean_tz = TIMEZONE_ALIASES[clean_tz]
 
-    # Check for direct IANA timezone (e.g. Asia/Kolkata, America/New_York)
     try:
         return ZoneInfo(tz_str.strip())
     except (ZoneInfoNotFoundError, ValueError):
@@ -55,7 +53,6 @@ def resolve_timezone(tz_str: str | None) -> datetime.tzinfo:
     except (ZoneInfoNotFoundError, ValueError):
         pass
 
-    # Check for ISO offset strings like +05:30, -0500, +00:00
     match = OFFSET_REGEX.match(clean_tz)
     if match:
         sign, hours, minutes = match.groups()
@@ -107,10 +104,8 @@ def normalize_to_utc(
 
     orig_str = str(val).strip()
 
-    # 1. Handle already-constructed datetime objects
     if isinstance(val, datetime.datetime):
         if val.tzinfo is None:
-            # Naive datetime: attach default timezone then convert to UTC
             tz = resolve_timezone(default_tz)
             aware_dt = val.replace(tzinfo=tz)
             _, offset_str = get_timezone_name_and_offset(tz, aware_dt)
@@ -119,38 +114,32 @@ def normalize_to_utc(
             _, offset_str = get_timezone_name_and_offset(val.tzinfo, val)
             return val.astimezone(timezone.utc), val.isoformat(), offset_str
 
-    # 2. Handle numeric timestamps (Epoch floats, seconds, ms, Chrome, Firefox)
     if isinstance(val, (int, float)) or (isinstance(orig_str, str) and (orig_str.isdigit() or (orig_str.replace(".", "", 1).isdigit() and orig_str.count(".") <= 1))):
         try:
             num = float(orig_str)
-            # Chrome epoch (microseconds since 1601-01-01)
             if num > 10_000_000_000_000_000:
                 epoch_1601 = datetime.datetime(1601, 1, 1, tzinfo=timezone.utc)
                 utc_dt = epoch_1601 + timedelta(microseconds=num)
                 return utc_dt, orig_str, "+00:00"
-            # Microseconds epoch
             if num > 1_000_000_000_000_000:
                 utc_dt = datetime.datetime.fromtimestamp(num / 1_000_000, tz=timezone.utc)
                 return utc_dt, orig_str, "+00:00"
-            # Milliseconds epoch
             if num > 10_000_000_000:
                 utc_dt = datetime.datetime.fromtimestamp(num / 1000, tz=timezone.utc)
                 return utc_dt, orig_str, "+00:00"
-            # Standard seconds epoch
             if num > 0:
                 utc_dt = datetime.datetime.fromtimestamp(num, tz=timezone.utc)
                 return utc_dt, orig_str, "+00:00"
         except (ValueError, OverflowError, OSError):
             pass
 
-    # 3. Handle PDF Format: D:YYYYMMDDHHMMSS[+|-]HH'MM'
     if orig_str.startswith("D:"):
         try:
             pdf_str = orig_str[2:].replace("'", "")
             clean = pdf_str[:14]
             dt_naive = datetime.datetime.strptime(clean, "%Y%m%d%H%M%S")
             tz_part = pdf_str[14:]
-            if tz_part and (tz_part.startswith("+") or tz_part.startswith("-")):
+            if tz_part and (tz_part.startswith(("+", "-"))):
                 sign = tz_part[0]
                 tz_clean = tz_part[1:].zfill(4)
                 h, m = int(tz_clean[:2]), int(tz_clean[2:4])
@@ -164,7 +153,6 @@ def normalize_to_utc(
         except Exception:
             pass
 
-    # 4. Handle EXIF Format: YYYY:MM:DD HH:MM:SS
     if re.match(r"^\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}$", orig_str):
         try:
             parsed = datetime.datetime.strptime(orig_str, "%Y:%m:%d %H:%M:%S")
@@ -175,12 +163,10 @@ def normalize_to_utc(
         except Exception:
             pass
 
-    # 5. Handle ISO 8601 Strings & Variants
     cleaned_str = orig_str.replace("Z", "+00:00")
     try:
         parsed_dt = datetime.datetime.fromisoformat(cleaned_str)
         if parsed_dt.tzinfo is None:
-            # Naive timestamp: attach default_tz safely
             default_tz_info = resolve_timezone(default_tz)
             aware_dt = parsed_dt.replace(tzinfo=default_tz_info)
             _, offset_str = get_timezone_name_and_offset(default_tz_info, aware_dt)
@@ -191,7 +177,6 @@ def normalize_to_utc(
     except (ValueError, TypeError):
         pass
 
-    # 6. Fallback string parse attempts
     known_formats = [
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d %H:%M:%S.%f",
@@ -203,7 +188,6 @@ def normalize_to_utc(
         try:
             parse_input = orig_str[:26]
             if fmt == "%b %d %H:%M:%S":
-                # Inject a year to avoid Python 3.13+ deprecation warning
                 parse_input = f"{datetime.datetime.now().year} " + parse_input
                 parsed = datetime.datetime.strptime(parse_input, "%Y %b %d %H:%M:%S")
             else:
@@ -215,7 +199,6 @@ def normalize_to_utc(
         except (ValueError, TypeError):
             continue
 
-    # Malformed timestamp safeguard: return None safely without crashing
     return None, orig_str, None
 
 
@@ -231,7 +214,6 @@ def format_for_timezone(utc_dt: datetime.datetime | None, target_tz: str = "UTC"
             "formatted": "N/A"
         }
 
-    # Ensure utc_dt is aware
     if utc_dt.tzinfo is None:
         utc_dt = utc_dt.replace(tzinfo=timezone.utc)
     else:

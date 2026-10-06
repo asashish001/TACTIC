@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import create_engine
@@ -38,7 +39,6 @@ def test_anomaly_detector_evaluation_and_confusion_matrix():
     assert "f1_score" in m and 0.0 <= m["f1_score"] <= 1.0
     assert "roc_auc" in m and 0.0 <= m["roc_auc"] <= 1.0
 
-    # Verify Confusion Matrix structure
     cm = m["confusion_matrix"]
     assert len(cm) == 2 and len(cm[0]) == 2
     assert cm[0][0] == m["tn"]
@@ -46,7 +46,6 @@ def test_anomaly_detector_evaluation_and_confusion_matrix():
     assert cm[1][0] == m["fn"]
     assert cm[1][1] == m["tp"]
 
-    # Verify performance metrics
     assert m["avg_processing_time_ms"] >= 0.0
     assert m["memory_rss_mb"] > 0.0
     assert m["throughput_samples_per_sec"] >= 0.0

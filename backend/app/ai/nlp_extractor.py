@@ -7,17 +7,15 @@ HOSTNAME, TIMESTAMP, SESSION_ID, COMMAND, EVENT.
 Every extracted artifact retains source evidence linking, character offsets,
 context snippets, and confidence scores.
 """
+import logging
 import os
 import re
 import sys
-import logging
 import threading
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("tactic.nlp_extractor")
 
-# RegEx Patterns for Deterministic Artifact Extraction
 IP_V4_PATTERN = re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b")
 IP_V6_PATTERN = re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b")
 URL_PATTERN = re.compile(r"\b(?:https?|ftp)://[^\s<>'\"]+\b", re.IGNORECASE)
@@ -63,10 +61,8 @@ class NLPArtifactExtractor:
                 return
 
             try:
-                import transformers
                 from transformers import pipeline
                 
-                # Try loading from local cache first for instant startup
                 try:
                     self.pipeline = pipeline(
                         "token-classification",
@@ -82,7 +78,6 @@ class NLPArtifactExtractor:
                 except Exception as exc:
                     logger.debug("Transformer model not found in local cache: %s", exc)
 
-                # If not in cache and network download is enabled, try loading with model pipeline
                 if os.getenv("HF_HUB_OFFLINE", "0") == "1" or os.getenv("TRANSFORMERS_OFFLINE", "0") == "1":
                     raise RuntimeError("Hugging Face Hub is set to offline mode.")
 
@@ -98,7 +93,6 @@ class NLPArtifactExtractor:
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                     future = executor.submit(_load)
-                    # 10 second strict network timeout
                     self.pipeline = future.result(timeout=10.0)
 
                 self.loaded = True
@@ -106,7 +100,7 @@ class NLPArtifactExtractor:
                 logger.info("Loaded Hugging Face Transformer model '%s' successfully.", self.model_name)
             except Exception as exc:
                 self.loaded = False
-                self.error_state = f"Model load failed: {str(exc)}"
+                self.error_state = f"Model load failed: {exc!s}"
                 self.pipeline = None
                 logger.warning("Transformer model initialization fallback activated: %s", exc)
 
@@ -142,10 +136,8 @@ class NLPArtifactExtractor:
         self._initialize_transformer()
         extracted: list[dict[str, Any]] = []
 
-        # 1. Hugging Face Transformer NER Extraction (PERSON & Named Entities)
         if self.loaded and self.pipeline:
             try:
-                # Limit chunk size to 512 chars for transformer inference safety
                 chunks = [text[i:i+512] for i in range(0, min(len(text), 10000), 512)]
                 for chunk_idx, chunk in enumerate(chunks):
                     chunk_offset = chunk_idx * 512
@@ -160,7 +152,6 @@ class NLPArtifactExtractor:
                         if len(val) >= 2 and not val.startswith("##"):
                             artifact_type = "PERSON" if entity_group in ("PER", "PERSON") else None
                             if not artifact_type and entity_group in ("ORG", "MISC", "LOC"):
-                                # Check if token matches domain/hostname/process heuristics
                                 if "." in val:
                                     artifact_type = "DOMAIN"
                                 elif len(val) >= 3 and val.isalnum():
@@ -183,7 +174,6 @@ class NLPArtifactExtractor:
             except Exception as exc:
                 logger.warning("Transformer inference error; using deterministic fallback: %s", exc)
 
-        # 2. Deterministic Regex & Rule-based Extraction Pipeline (Guaranteed Fallback)
         regex_specs = [
             ("IP_ADDRESS", IP_V4_PATTERN, 0.98),
             ("IP_ADDRESS", IP_V6_PATTERN, 0.98),
@@ -208,10 +198,8 @@ class NLPArtifactExtractor:
                 val = match.group(0).strip()
                 if not val or len(val) < 2:
                     continue
-                # Special filtering for domains to avoid matching IP or file paths
                 if artifact_type == "DOMAIN" and (IP_V4_PATTERN.match(val) or "/" in val or "\\" in val):
                     continue
-                # Filter out pure digits for hostnames/usernames
                 if artifact_type in ("HOSTNAME", "USERNAME", "PROCESS") and val.isdigit():
                     continue
 
@@ -230,8 +218,6 @@ class NLPArtifactExtractor:
                     "details": {"pattern": pattern.pattern[:30]}
                 })
 
-        # 3. Rule-based Heuristic PERSON & Event Extraction
-        # PERSON fallback heuristics: e.g. "User: Alice Smith", "Author: Bob Johnson", "Investigator: John Doe"
         person_rule = re.compile(r"\b(?:User|Author|Investigator|Subject|Owner|Admin|Analyst)[:=]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b")
         for match in person_rule.finditer(text):
             val = match.group(1).strip()
@@ -251,7 +237,6 @@ class NLPArtifactExtractor:
                     "details": {"rule": "person_prefix"}
                 })
 
-        # Event Extraction: High-signal forensic lines containing event keywords
         event_lines = text.splitlines()
         for idx, line in enumerate(event_lines[:200]):
             clean_line = line.strip()
@@ -271,7 +256,6 @@ class NLPArtifactExtractor:
                         "details": {"line_number": idx + 1}
                     })
 
-        # 4. Deduplicate Extracted Artifacts (Retain highest confidence per artifact_type + value)
         deduped: dict[tuple[str, str], dict[str, Any]] = {}
         for item in extracted:
             key = (item["artifact_type"], item["value"].lower())
@@ -281,8 +265,6 @@ class NLPArtifactExtractor:
         return list(deduped.values())
 
 
-# Global singleton kept for backward compatibility.
-# Prefer ``from app.ai.registry import get_nlp_extractor`` instead.
 from app.ai.registry import get_nlp_extractor as _get_nlp
 
 

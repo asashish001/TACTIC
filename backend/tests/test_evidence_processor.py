@@ -1,7 +1,5 @@
 """Tests for evidence_processor.py — hashing, file type detection, and metadata."""
 import hashlib
-import tempfile
-from pathlib import Path
 
 import pytest
 

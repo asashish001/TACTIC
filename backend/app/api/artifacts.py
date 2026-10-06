@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.ai.registry import get_nlp_extractor
+from app.auth.security import RoleChecker, get_current_user, require_case_access
+from app.config import RATE_LIMIT_HEAVY, RATE_LIMIT_READ, limiter
 from app.database.session import get_db
 from app.models.case import Case
 from app.models.evidence import Evidence
@@ -11,11 +14,7 @@ from app.schemas.artifact import (
     ExtractedArtifactResponse,
     ModelStatusResponse,
 )
-from app.auth.security import get_current_user, require_case_access, RoleChecker
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_HEAVY
-from app.ai.registry import get_nlp_extractor
 from app.services.artifact_extraction import extract_and_store_artifacts
-
 
 router = APIRouter(prefix="/api/artifacts", tags=["Artifact Extraction Pipeline"])
 
@@ -142,7 +141,6 @@ def list_artifacts_filtered(request: Request,
 
     query = db.query(ExtractedArtifact).filter(ExtractedArtifact.case_id == case_id)
 
-    # Apply filters
     if artifact_type:
         query = query.filter(ExtractedArtifact.artifact_type == artifact_type)
     if source:

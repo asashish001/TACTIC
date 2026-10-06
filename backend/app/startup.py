@@ -8,27 +8,33 @@ import os
 
 from sqlalchemy import inspect, text
 
-from app.database.session import engine, Base, SessionLocal
-
-# ── Ensure all ORM models are registered with Base.metadata ──────
-# Importing every model module here guarantees they are known to
-# SQLAlchemy *before* create_all() runs.
-from app.models.user import User  # noqa: F401
+from app.auth.security import get_password_hash, verify_password
+from app.database.session import Base, SessionLocal, engine
+from app.models.artifact_correlation import ArtifactCorrelation  # noqa: F401
+from app.models.browser_artifact import BrowserArtifact  # noqa: F401
 from app.models.case import Case  # noqa: F401
 from app.models.evidence import Evidence  # noqa: F401
+from app.models.extracted_artifact import ExtractedArtifact  # noqa: F401
 from app.models.finding import Finding  # noqa: F401
-from app.models.report import Report  # noqa: F401
 from app.models.forensic_job import ForensicJob  # noqa: F401
-from app.models.artifact_correlation import ArtifactCorrelation  # noqa: F401
+from app.models.forensic_records import (  # noqa: F401
+    AuditLog,
+    ChainOfCustody,
+    EvidenceHash,
+    TimelineEvent,
+)
+from app.models.intelligence import (  # noqa: F401
+    ThreatIntelIndicator,
+    VulnerabilityMatch,
+)
 from app.models.model_evaluation import ModelEvaluationRun  # noqa: F401
 from app.models.model_registry import ModelRegistryEntry  # noqa: F401
-from app.models.intelligence import ThreatIntelIndicator, VulnerabilityMatch  # noqa: F401
-from app.models.forensic_records import AuditLog, ChainOfCustody, EvidenceHash, TimelineEvent  # noqa: F401
-from app.models.browser_artifact import BrowserArtifact  # noqa: F401
 from app.models.network_artifact import NetworkArtifact  # noqa: F401
-from app.models.extracted_artifact import ExtractedArtifact  # noqa: F401
+from app.models.report import Report  # noqa: F401
 from app.models.system_setting import SystemSetting  # noqa: F401
-from app.auth.security import get_password_hash, verify_password  # noqa: F401
+
+# ── Ensure all ORM models are registered with Base.metadata ──────
+from app.models.user import User
 
 log = logging.getLogger(__name__)
 
@@ -98,8 +104,6 @@ apply_compatibility_migrations()
 
 
 # ── Admin seeding ───────────────────────────────────────────────
-# Known insecure passwords that must never be used in production.
-# Note: "ChangeMe123!" is allowed as default in local development/demo mode to match UI credentials.
 _INSECURE_PASSWORDS = {
     "changeme",
     "password",
@@ -129,7 +133,6 @@ def seed_admin_user() -> None:
         env_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "ChangeMe123!").strip()
 
         if env_password.lower() in _INSECURE_PASSWORDS:
-            # Generate a random password the admin must use on first login
             import secrets as _secrets
             generated = _secrets.token_urlsafe(16)  # ~22 chars, URL-safe
             log.warning(

@@ -13,10 +13,9 @@ Crash-safe: cleanup runs even if the test raises an exception.
 import os
 import shutil
 import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
-# Ensure tests run with offline model fallback and no hanging downloads
 os.environ.setdefault("NLP_MODEL_NAME", "fallback")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -24,23 +23,20 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Session, sessionmaker
 
-# Ensure the backend package is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.auth.security import create_access_token, get_password_hash
 from app.config import limiter  # Import the global limiter
 from app.database.session import Base, get_db
-from app.models.user import User
 from app.models.case import Case
 from app.models.finding import Finding  # noqa: F401 - register before create_all
-from app.auth.security import get_password_hash, create_access_token
+from app.models.user import User
 
-# Disable rate limiting during tests
 limiter.enabled = False
 
-# Uploads directory used by tests
 _UPLOADS_DIR = Path(__file__).resolve().parent.parent / "app" / "uploads"
 _REPORTS_DIR = Path(__file__).resolve().parent.parent / "app" / "reports"
 
@@ -65,14 +61,12 @@ def db(engine) -> Generator[Session, None, None]:
     transaction = connection.begin()
     session = sessionmaker(bind=connection)()
 
-    # Start a nested savepoint so test commits don't leak
     nested = connection.begin_nested()
     session.info["savepoint_token"] = nested
 
     try:
         yield session
     finally:
-        # Rollback everything, even if the test committed
         try:
             session.close()
         except Exception:
@@ -99,7 +93,6 @@ def client(db, engine):
         finally:
             pass
 
-    # Import app AFTER path is set
     from app.main import app
     app.dependency_overrides[get_db] = override_get_db
 
@@ -112,13 +105,11 @@ def client(db, engine):
 @pytest.fixture(autouse=True)
 def _cleanup_test_files():
     """Auto-cleanup: remove any test-created upload/report directories."""
-    # Snapshot existing directories before the test
     pre_uploads = set(_UPLOADS_DIR.iterdir()) if _UPLOADS_DIR.exists() else set()
     pre_reports = set(_REPORTS_DIR.iterdir()) if _REPORTS_DIR.exists() else set()
 
     yield
 
-    # Remove only directories that were created during the test
     for d in (_UPLOADS_DIR, _REPORTS_DIR):
         if not d.exists():
             continue

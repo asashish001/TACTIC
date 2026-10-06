@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class FindingBase(BaseModel):
     title: str = Field(..., max_length=200)

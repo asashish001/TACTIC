@@ -1,2776 +1,671 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>T.A.C.T.I.C. — Forensic Command Center</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />  <style>
-    :root {
-      --bg: #030712;
-      --panel: rgba(17, 24, 39, 0.6);
-      --panel2: rgba(31, 41, 55, 0.7);
-      --line: rgba(56, 189, 248, 0.15);
-      --text: #f3f4f6;
-      --muted: #9ca3af;
-      --cyan: #38bdf8;
-      --cyan-glow: rgba(56, 189, 248, 0.5);
-      --blue: #3b82f6;
-      --amber: #f59e0b;
-      --red: #ef4444;
-      --green: #10b981;
-      --glass-border: 1px solid rgba(255,255,255,0.05);
-      --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: radial-gradient(circle at 100% 0%, #1e3a8a20 0, transparent 40%),
-                  radial-gradient(circle at 0% 100%, #064e3b20 0, transparent 40%),
-                  var(--bg);
-      background-attachment: fixed;
-      color: var(--text);
-      font: 14px 'JetBrains Mono', monospace;
-      overflow-x: hidden;
-    }
-    /* ── Shell ── */
-    .shell { min-height: 100vh; display: grid; grid-template-columns: 260px 1fr; }
-    /* ── Sidebar ── */
-    .sidebar {
-      position: fixed; width: 260px; inset: 0 auto 0 0; padding: 24px 14px;
-      background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border-right: var(--glass-border); z-index: 5; display: flex; flex-direction: column;
-      box-shadow: 4px 0 24px rgba(0,0,0,0.5);
-    }
-    .brand {
-      display: flex; gap: 12px; align-items: center; padding: 0 10px 24px;
-      font: 700 24px 'Space Grotesk'; letter-spacing: 2px; color: #fff;
-      text-shadow: 0 0 10px var(--cyan-glow);
-    }
-    .mark {
-      width: 32px; height: 32px; display: grid; place-items: center;
-      color: #000; background: var(--cyan);
-      clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-      box-shadow: 0 0 15px var(--cyan-glow);
-    }
-    .case-select {
-      margin: 0 8px 18px; padding: 12px;
-      background: rgba(255,255,255,0.03); border: var(--glass-border);
-      border-radius: 8px; color: var(--cyan); font-size: 11px;
-    }
-    .case-select select {
-      width: 100%; background: transparent; border: 0; color: #fff;
-      font: 12px inherit; margin-top: 6px; cursor: pointer; outline: none;
-    }
-    .case-select select option { background: var(--bg); }
-    .case-select small { display: block; color: var(--muted); margin-top: 7px; }
-    .nav-label { color: #6b7280; font-size: 10px; letter-spacing: 1.5px; padding: 12px 10px 6px; text-transform: uppercase; }
-    .nav {
-      width: 100%; display: block; text-align: left; border: 0;
-      background: transparent; color: #d1d5db; padding: 12px 10px;
-      border-radius: 6px; cursor: pointer; font: 12px inherit;
-      transition: all 0.2s ease; position: relative; overflow: hidden;
-    }
-    .nav:hover { background: rgba(255,255,255,0.05); color: #fff; transform: translateX(4px); }
-    .nav.active { background: rgba(56,189,248,0.1); color: var(--cyan); font-weight: 600; box-shadow: inset 3px 0 0 var(--cyan); }
-    .nav b { float: right; color: #6b7280; font-weight: normal; }
-    .status { margin-top: auto; padding: 22px 23px; color: var(--green); font-size: 11px; letter-spacing: 0.5px; }
-    .pulse {
-      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-      background: var(--green); box-shadow: 0 0 12px var(--green);
-      margin-right: 8px; animation: pulse 2s infinite;
-    }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
-    /* ── Main ── */
-    .main { grid-column: 2; padding: 32px 48px; max-width: 1600px; width: 100%; }
-    .topbar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding-bottom: 24px; border-bottom: var(--glass-border); margin-bottom: 24px;
-    }
-    .crumb { color: var(--muted); font-size: 12px; letter-spacing: 1px; }
-    .top-actions { display: flex; gap: 16px; align-items: center; }
-    .clock { color: var(--cyan); font-size: 12px; font-weight: 500; }
-    .user-pill {
-      border: var(--glass-border); padding: 8px 12px; color: #d1d5db;
-      font-size: 11px; border-radius: 20px; background: rgba(255,255,255,0.02);
-    }
-    /* ── Views ── */
-    .view { display: none; opacity: 0; transform: translateY(10px); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-    .view.active { display: block; opacity: 1; transform: translateY(0); animation: fadeIn 0.4s ease forwards; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    h1 { font: 700 36px 'Space Grotesk'; letter-spacing: -0.5px; margin: 0 0 8px; color: #fff; }
-    h2 { font: 600 18px 'Space Grotesk'; margin: 0 0 20px; color: #fff; }
-    .lead { margin: 0 0 32px; color: var(--muted); line-height: 1.6; font-size: 14px; max-width: 800px; }
-    /* ── Grid ── */
-    .grid { display: grid; gap: 24px; }
-    .stats { grid-template-columns: repeat(4, 1fr); }
-    .two { grid-template-columns: 1fr 1fr; }
-    .three { grid-template-columns: repeat(3, 1fr); }
-    /* ── Cards ── */
-    .card {
-      background: var(--panel); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: var(--glass-border); border-radius: 12px; padding: 24px;
-      box-shadow: var(--glass-shadow); transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .card:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.1); }
-    .metric { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-    .value { font: 700 36px 'Space Grotesk'; margin: 12px 0 8px; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.1); }
-    .up { color: var(--green); font-size: 12px; }
-    .warn { color: var(--amber); }
-    .danger { color: var(--red); }
-    /* ── Toolbar / Buttons ── */
-    .toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0; }
-    .btn {
-      background: rgba(255,255,255,0.05); border: var(--glass-border); color: #fff;
-      padding: 10px 18px; cursor: pointer; font: 500 12px 'JetBrains Mono', monospace;
-      border-radius: 6px; transition: all 0.2s; backdrop-filter: blur(4px);
-    }
-    .btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-    .btn:active { transform: translateY(0); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn.primary {
-      background: var(--cyan); border-color: var(--cyan); color: #000; font-weight: 700;
-      box-shadow: 0 0 15px var(--cyan-glow);
-    }
-    .btn.primary:hover { background: #7dd3fc; box-shadow: 0 0 25px var(--cyan-glow); }
-    .btn.danger { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); }
-    .btn.danger:hover { background: rgba(239,68,68,0.2); box-shadow: 0 0 15px var(--red-glow); }
-    /* ── Tables ── */
-    .table-wrap { overflow-x: auto; margin-top: 16px; }
-    .table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
-    .table th {
-      text-align: left; color: var(--muted); font-weight: 600; padding: 14px 16px;
-      border-bottom: var(--glass-border); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;
-    }
-    .table td { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.03); color: #e5e7eb; }
-    .table tbody tr { transition: background 0.2s; }
-    .table tbody tr:hover { background: rgba(255,255,255,0.02); }
-    /* ── Tags ── */
-    .tag {
-      display: inline-block; padding: 4px 10px; border: 1px solid rgba(56,189,248,0.3);
-      background: rgba(56,189,248,0.1); color: var(--cyan); font-size: 11px; border-radius: 4px;
-    }
-    .tag.red { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.1); color: var(--red); }
-    .tag.amber { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.1); color: var(--amber); }
-    .tag.green { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.1); color: var(--green); }
-    /* ── Progress ── */
-    .progress { height: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; margin: 12px 0; overflow: hidden; border: var(--glass-border); }
-    .progress i {
-      display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan));
-      width: 0%; box-shadow: 0 0 10px var(--cyan-glow); transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    /* ── Console ── */
-    .console {
-      background: rgba(0,0,0,0.5); border: var(--glass-border); padding: 20px;
-      border-radius: 8px; min-height: 200px; color: #a5b4fc; line-height: 1.8;
-      font-size: 12px; overflow: auto; max-height: 350px; font-family: 'JetBrains Mono', monospace;
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-    }
-    .console .cmd { color: var(--cyan); }
-    .console .out { color: var(--green); text-shadow: 0 0 8px var(--green-glow); }
-    .console .warn { color: var(--amber); }
-    .console .err { color: var(--red); text-shadow: 0 0 8px var(--red-glow); }
-    /* ── Inputs ── */
-    .inputrow { display: flex; margin-top: 16px; gap: 12px; }
-    .inputrow input, .inputrow textarea, select.field {
-      flex: 1; background: rgba(0,0,0,0.3); color: #fff;
-      border: var(--glass-border); padding: 12px 16px; font: 12px inherit;
-      border-radius: 6px; transition: all 0.2s; outline: none;
-    }
-    .inputrow input:focus, .inputrow textarea:focus, select.field:focus {
-      border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
-    }
-    label.field-label { display: block; color: var(--muted); font-size: 11px; letter-spacing: 1px; margin-bottom: 8px; font-weight: 500; }
-    /* ── Map / Graph ── */
-    .map {
-      height: 350px; position: relative; overflow: hidden; border-radius: 8px;
-      background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
-      border: var(--glass-border); box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
-    }
-    .map::before {
-      content: ''; position: absolute; inset: 0;
-      background-image: linear-gradient(rgba(56,189,248,0.05) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(56,189,248,0.05) 1px, transparent 1px);
-      background-size: 40px 40px; pointer-events: none;
-    }
-    .node {
-      position: absolute; z-index: 1; padding: 8px 12px; border: 1px solid var(--cyan);
-      background: rgba(15,23,42,0.9); color: var(--cyan); font-size: 11px; cursor: pointer;
-      border-radius: 4px; transition: all 0.2s; box-shadow: 0 0 10px rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-    }
-    .node:hover { transform: scale(1.1); z-index: 2; box-shadow: 0 0 20px var(--cyan-glow); border-color: #fff; color: #fff; }
-    .node.red { border-color: var(--red); color: var(--red); background: rgba(69,10,10,0.9); }
-    .node.purple { border-color: #a855f7; color: #a855f7; background: rgba(59,7,100,0.9); }
-    .node.green { border-color: var(--green); color: var(--green); background: rgba(2,44,34,0.9); }
-    .node.amber { border-color: var(--amber); color: var(--amber); background: rgba(69,26,3,0.9); }
-    /* ── Timeline ── */
-    .timeline { border-left: 2px solid rgba(56,189,248,0.3); margin-left: 12px; padding-left: 32px; }
-    .event { position: relative; padding: 0 0 28px; }
-    .event::before {
-      content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%;
-      background: var(--cyan); left: -39px; top: 4px; box-shadow: 0 0 15px var(--cyan-glow); border: 2px solid #000;
-    }
-    .event.suspicious::before { background: var(--red); box-shadow: 0 0 15px var(--red-glow); }
-    .event time { color: var(--cyan); font-size: 11px; font-weight: 500; letter-spacing: 0.5px; }
-    .event p { color: #e5e7eb; margin: 8px 0 0; line-height: 1.6; font-size: 13px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 6px; border: var(--glass-border); }
-    .event .priority { font-size: 10px; padding: 3px 8px; margin-left: 12px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
-    .priority.critical { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
-    .priority.high { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: var(--amber); }
-    .priority.medium { background: rgba(156,163,175,0.1); border: 1px solid rgba(156,163,175,0.3); color: #d1d5db; }
-    .priority.low, .priority.info { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--cyan); }
-    /* ── Alert ── */
-    .alert {
-      border-left: 4px solid var(--amber); background: rgba(245,158,11,0.1); padding: 16px;
-      margin: 20px 0; color: #fde68a; font-size: 13px; border-radius: 0 6px 6px 0; backdrop-filter: blur(4px);
-    }
-    .alert.info { border-left-color: var(--cyan); background: rgba(56,189,248,0.1); color: #bae6fd; }
-    /* ── Chat ── */
-    .chat {
-      height: 400px; overflow: auto; background: rgba(0,0,0,0.3); border: var(--glass-border);
-      padding: 20px; display: flex; flex-direction: column; gap: 16px; border-radius: 8px;
-    }
-    .bubble { max-width: 80%; padding: 14px 18px; line-height: 1.6; font-size: 13px; border-radius: 12px; backdrop-filter: blur(4px); }
-    .bubble.user { align-self: flex-end; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2); color: #fff; border-bottom-right-radius: 4px; }
-    .bubble.ai { align-self: flex-start; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #e5e7eb; border-bottom-left-radius: 4px; }
-    .bubble.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
-    /* ── Report ── */
-    .report { min-height: 400px; background: #fff; color: #111827; padding: 48px; font-family: 'Inter', sans-serif; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-    .report h2 { font-family: 'Space Grotesk', sans-serif; border-bottom: 2px solid #1e3a8a; padding-bottom: 12px; color: #1e3a8a; }
-    .report p { line-height: 1.8; font-size: 15px; color: #374151; }
-    /* ── Lock / Lockdown ── */
-    .lock { padding: 48px; text-align: center; border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.05); border-radius: 12px; }
-    .lock .value { font-size: 56px; color: var(--red); text-shadow: 0 0 20px var(--red-glow); }
-    /* ── Toast ── */
-    #toastContainer { position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
-    .toast-item {
-      pointer-events: auto; padding: 16px 24px; border-radius: 8px; font: 500 13px/1.5 'JetBrains Mono', monospace;
-      max-width: 450px; animation: toastIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-      display: flex; align-items: center; gap: 16px; backdrop-filter: blur(12px); border: var(--glass-border);
-    }
-    .toast-item.success { background: rgba(2,44,34,0.9); border-color: rgba(16,185,129,0.4); color: #6ee7b7; }
-    .toast-item.error { background: rgba(69,10,10,0.9); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
-    .toast-item.warning { background: rgba(69,26,3,0.9); border-color: rgba(245,158,11,0.4); color: #fcd34d; }
-    .toast-item.info { background: rgba(8,47,73,0.9); border-color: rgba(56,189,248,0.4); color: #bae6fd; }
-    .toast-item .toast-close { margin-left: auto; cursor: pointer; opacity: 0.7; font-size: 16px; transition: opacity 0.2s; }
-    .toast-item .toast-close:hover { opacity: 1; }
-    @keyframes toastIn { from { opacity: 0; transform: translateX(50px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
-    @keyframes toastOut { from { opacity: 1; transform: translateX(0) scale(1); } to { opacity: 0; transform: translateX(50px) scale(0.95); } }
-    
-    /* ── Loading spinner ── */
-    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--cyan); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    /* ── Scrollbar ── */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-    /* ── Skeleton loaders ── */
-    .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
-    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-    .sk-line { height: 16px; margin: 8px 0; }
-    .sk-block { height: 80px; margin: 12px 0; }
-    .sk-card { height: 160px; margin: 12px 0; }
-
-    /* ── Responsive ── */
-    @media(max-width:900px) {
-      .shell { display: block; }
-      .sidebar { width: 280px; height: 100vh; transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y: auto; }
-      .sidebar.open { transform: translateX(0); }
-      .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 4; }
-      .sidebar-overlay.open { display: block; }
-      .menu-toggle { display: inline-flex; background: transparent; border: var(--glass-border); color: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
-      .main { padding: 20px; }
-      .stats { grid-template-columns: repeat(2, 1fr); }
-      .two, .three { grid-template-columns: 1fr; }
-    }
-    @media(max-width:600px) {
-      .stats { grid-template-columns: 1fr; }
-      h1 { font-size: 28px; }
-      .value { font-size: 28px; }
-      .main { padding: 16px; }
-      #loginScreen > div { grid-template-columns: 1fr!important; padding: 24px!important; }
-      #loginScreen > div > div:last-child { display: none!important; }
-    }
-    
-    /* ── XAI Explanation Panel ── */
-    .xai-toggle { cursor: pointer; color: var(--cyan); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: color 0.2s; }
-    .xai-toggle:hover { color: #fff; text-shadow: 0 0 10px var(--cyan-glow); }
-    .xai-panel { display: none; background: rgba(0,0,0,0.4); border: var(--glass-border); padding: 16px; margin: 10px 0; border-radius: 6px; }
-    .xai-panel.open { display: block; animation: fadeIn 0.3s ease; }
-    .xai-bar-wrap { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
-    .xai-bar-label { min-width: 180px; color: #e5e7eb; font-size: 11px; }
-    .xai-bar-track { flex: 1; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; overflow: hidden; }
-    .xai-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); background: linear-gradient(90deg, var(--blue), var(--cyan)); box-shadow: 0 0 10px var(--cyan-glow); }
-    .xai-bar-pct { min-width: 40px; text-align: right; color: var(--cyan); font-weight: 600; font-size: 11px; }
-    .xai-reason { color: #d1d5db; padding: 8px 0; font-size: 12px; line-height: 1.6; border-left: 2px solid var(--amber); margin-top: 12px; padding-left: 12px; background: rgba(245,158,11,0.05); }
-    .xai-trace { color: var(--muted); font-size: 10px; margin-top: 12px; border-top: var(--glass-border); padding-top: 10px; }
-    
-    /* ── Light Theme (Overridden to dark for premium look, disabled for now) ── */
-    body.light-theme { background: var(--bg); color: var(--text); } /* Enforce dark mode as premium */
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Digital Forensics Assistant</title>
+  <meta name="description" content="Advanced AI-powered digital forensics investigation dashboard">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Icons (Lucide) -->
+  <script src="lucide.min.js"></script>
+  <script src="cytoscape.min.js"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
-
-<!-- ═══════════════ LOGIN / LANDING SCREEN ═══════════════ -->
-<div id="loginScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:transparent">
-  <!-- Tactical grid background -->
-  <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(140,144,159,0.15) 1px,transparent 1px);background-size:24px 24px;pointer-events:none"></div>
-  <!-- Holographic edge lighting -->
-  <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at top right,rgba(77,142,255,0.18),transparent 40%),radial-gradient(circle at bottom left,rgba(0,203,230,0.12),transparent 30%)"></div>
-
-  <div style="max-width:1440px;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:64px 32px;position:relative;z-index:10">
-    <!-- Left Column: Content + Login -->
-    <div style="display:flex;flex-direction:column;gap:32px;position:relative;z-index:20">
-      <!-- Status Indicator -->
-      <div style="display:inline-flex;align-items:center;gap:8px;width:fit-content;background:rgba(35,41,60,0.7);backdrop-filter:blur(12px);padding:12px 16px;border:1px solid rgba(66,71,84,0.4);border-radius:9999px">
-        <div style="width:8px;height:8px;border-radius:50%;background:#5de6ff;box-shadow:0 0 8px #5de6ff;animation:pulse 2s infinite"></div>
-        <span style="font:500 12px/1 'JetBrains Mono',monospace;color:#5de6ff;text-transform:uppercase;letter-spacing:0.1em">● AI FORENSIC ENGINE ONLINE</span>
-      </div>
-
-      <!-- Branding -->
-      <div>
-        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
-          <div style="width:52px;height:52px;display:grid;place-items:center;background:#4d8eff;color:#00285d;font:700 28px 'Space Grotesk',sans-serif;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);filter:drop-shadow(0 0 15px rgba(77,142,255,0.4))">T</div>
-          <h1 style="margin:0;font:700 48px/1.1 'Space Grotesk',sans-serif;color:#dce1fb;letter-spacing:-0.02em;text-shadow:0 0 20px rgba(173,198,255,0.2)">TACTIC</h1>
+  
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="padding: 1.5rem 2rem; flex-direction: column; align-items: center; gap: 1rem;">
+        <img src="logo.jpg" alt="TACTIC Logo" style="width: 80px; height: 80px; border-radius: 12px; box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);">
+        <span class="sidebar-title" style="font-size: 1.5rem; letter-spacing: 2px;">TACTIC</span>
+        
+        <!-- Global Case Selector -->
+        <div style="width: 100%; margin-top: 0.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+          <select id="global-case-select" style="width: 100%; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; padding: 0.5rem; outline: none; font-size: 0.85rem;">
+            <option value="">-- No Case Selected --</option>
+          </select>
         </div>
-        <h2 style="margin:0 0 16px;font:600 28px/1.2 'Space Grotesk',sans-serif;color:#adc6ff;max-width:500px;text-shadow:0 0 10px rgba(173,198,255,0.15)">AI-Powered Digital Forensics Command Center</h2>
-        <p style="margin:0;font:400 16px/1.6 'Inter',sans-serif;color:#c2c6d6;max-width:460px;border-left:2px solid #4d8eff;padding-left:12px">Transform digital evidence into actionable intelligence with AI-assisted forensic investigation. Deploy advanced scanning, decrypt streams, and analyze threats in real-time.</p>
       </div>
+      <nav class="nav-links">
+        <a href="#" class="nav-item active" data-view="dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-view="cases">
+          <i data-lucide="briefcase"></i>
+          <span>Cases</span>
+        </a>
+        <a href="#" class="nav-item" data-view="evidence">
+          <i data-lucide="file-search"></i>
+          <span>Evidence</span>
+        </a>
+        <a href="#" class="nav-item" data-view="analysis">
+          <i data-lucide="activity"></i>
+          <span>Analysis</span>
+        </a>
+        <a href="#" class="nav-item" data-view="timeline">
+          <i data-lucide="clock"></i>
+          <span>Timeline</span>
+        </a>
+        <a href="#" class="nav-item" data-view="network">
+          <i data-lucide="network"></i>
+          <span>Network Graph</span>
+        </a>
+        <a href="#" class="nav-item" data-view="chat">
+          <i data-lucide="message-square"></i>
+          <span>AI Chat</span>
+        </a>
+        <a href="#" class="nav-item" data-view="reports">
+          <i data-lucide="file-text"></i>
+          <span>Reports</span>
+        </a>
+        <a href="#" class="nav-item" data-view="settings">
+          <i data-lucide="settings"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
+    </aside>
 
-      <!-- Login Form -->
-      <div id="loginForm" style="background:rgba(15,23,42,0.7);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);padding:28px 24px;border-radius:8px">
-        <div style="margin-bottom:16px">
-          <label style="display:block;font:500 11px/1 'JetBrains Mono',monospace;color:#8c909f;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">INVESTIGATOR IDENTIFIER</label>
-          <input id="loginUser" type="text" placeholder="Enter username" autocomplete="username" style="width:100%;background:#191f31;color:#dce1fb;border:1px solid #424754;padding:14px 16px;font:400 15px 'Inter',sans-serif;border-radius:4px;transition:border-color .2s,box-shadow .2s;outline:none" onfocus="this.style.borderColor='#5de6ff';this.style.boxShadow='0 0 12px rgba(93,230,255,0.2)'" onblur="this.style.borderColor='#424754';this.style.boxShadow='none'" />
+    <!-- Main Content Area -->
+    <main class="main-content" id="main-content" style="position: relative;">
+      
+      <div id="no-case-overlay" style="display: none; position: absolute; inset: 0; background: #0b1120; z-index: 100; flex-direction: column; align-items: center; justify-content: center;">
+        <i data-lucide="briefcase" style="width: 64px; height: 64px; color: rgba(255,255,255,0.2); margin-bottom: 1rem;"></i>
+        <h2 style="color: var(--text-muted); font-weight: 400; font-size: 1.5rem;">No Case Selected</h2>
+        <p style="color: rgba(255,255,255,0.3); margin-top: 0.5rem;">Please select a case from the sidebar to view this page.</p>
+      </div>
+      
+      <!-- Dashboard View -->
+      <section id="view-dashboard" class="view active animate-fade-in">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Forensic Dashboard</h1>
+            <p class="text-muted">System Overview & Active Intelligence</p>
+          </div>
+          <button class="btn" id="btn-generate-summary">
+            <i data-lucide="activity" style="width:18px;height:18px;"></i>
+            <span>Generate Summary</span>
+          </button>
+        </header>
+
+        <div id="dashboard-summary-container" class="dashboard-summary hidden" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; margin-bottom: 0.5rem; color: #a78bfa;">
+                <i data-lucide="sparkles" style="width:18px;height:18px; margin-right: 8px;"></i>
+                <h3 style="margin: 0; font-size: 1rem;">AI Executive Triage Summary</h3>
+            </div>
+            <p id="dashboard-summary-text" style="color: var(--text-color); line-height: 1.6; margin: 0;">Generating...</p>
         </div>
-        <div style="margin-bottom:16px">
-          <label style="display:block;font:500 11px/1 'JetBrains Mono',monospace;color:#8c909f;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">PASSPHRASE</label>
-          <div style="position:relative">
-            <input id="loginPass" type="password" placeholder="Enter passphrase" autocomplete="current-password" style="width:100%;background:#191f31;color:#dce1fb;border:1px solid #424754;padding:14px 44px 14px 16px;font:400 15px 'Inter',sans-serif;border-radius:4px;transition:border-color .2s,box-shadow .2s;outline:none" onfocus="this.style.borderColor='#5de6ff';this.style.boxShadow='0 0 12px rgba(93,230,255,0.2)'" onblur="this.style.borderColor='#424754';this.style.boxShadow='none'" />
-            <button type="button" onclick="togglePassVisibility('loginPass', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#8c909f;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center" onmouseover="this.style.color='#5de6ff'" onmouseout="this.style.color='#8c909f'">
-              <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-            </button>
+
+        <div class="stats-grid delay-1">
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="color: #3b82f6; background: rgba(59, 130, 246, 0.1);">
+              <i data-lucide="shield-alert"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Active Threats</h3>
+              <div class="value" id="stat-active-threats">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="color: #8b5cf6; background: rgba(139, 92, 246, 0.1);">
+              <i data-lucide="database"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Processed Artifacts</h3>
+              <div class="value" id="stat-processed-artifacts">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="color: #10b981; background: rgba(16, 185, 129, 0.1);">
+              <i data-lucide="brain"></i>
+            </div>
+            <div class="stat-info">
+              <h3>AI Detections</h3>
+              <div class="value" id="stat-ai-detections">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="color: #f59e0b; background: rgba(245, 158, 11, 0.1);">
+              <i data-lucide="server"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Active Agents</h3>
+              <div class="value" id="stat-active-agents">-</div>
+            </div>
           </div>
         </div>
-        <div id="loginErr" style="color:#ffb4ab;font:400 12px/1.4 'Inter',sans-serif;text-align:center;margin-bottom:10px;display:none"></div>
-        <button type="button" onclick="doLogin()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:#005ac2;color:#fff;border:none;padding:14px;font:500 13px/1 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.05em;border-radius:4px;cursor:pointer;transition:all .3s;box-shadow:0 0 15px rgba(0,90,194,0.4)" onmouseover="this.style.background='#4d8eff';this.style.boxShadow='0 0 25px rgba(77,142,255,0.6)'" onmouseout="this.style.background='#005ac2';this.style.boxShadow='0 0 15px rgba(0,90,194,0.4)'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6m0 0l-3-3m3 3l3-3M5 12H2m20 0h-3m-7 0a7 7 0 110 14 7 7 0 010-14z"/></svg>
-          SECURE SIGN IN
+
+        <div style="margin-top: 2.5rem;">
+          <h2 style="font-size: 1.25rem; margin-bottom: 1.25rem; font-weight: 600;">Recent Alerts</h2>
+          <div class="table-container delay-2">
+            <table>
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Time</th>
+                  <th>Source</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="alerts-table-body">
+                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading alerts...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cases View -->
+      <section id="view-cases" class="view hidden animate-fade-in">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Case Management</h1>
+            <p class="text-muted">Manage investigations and case files</p>
+          </div>
+          <button class="btn" id="btn-new-case">
+            <i data-lucide="plus" style="width:18px;height:18px;"></i>
+            <span>New Case</span>
+          </button>
+        </header>
+        <div class="search-bar">
+          <i data-lucide="search" style="color:#94a3b8; width:18px; height:18px;"></i>
+          <input type="text" placeholder="Search cases...">
+        </div>
+        <div class="features-grid delay-1" id="cases-list">
+          <!-- Cases will be populated by JS -->
+        </div>
+      </section>
+
+      <!-- Evidence View -->
+      <section id="view-evidence" class="view hidden animate-fade-in">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Evidence Locker</h1>
+            <p class="text-muted">Upload and manage digital artifacts</p>
+          </div>
+          <button class="btn" id="btn-upload-evidence">
+            <i data-lucide="upload" style="width:18px;height:18px;"></i>
+            <span>Upload Evidence</span>
+          </button>
+        </header>
+        <div class="stats-grid delay-1" style="margin-bottom:2rem;">
+          <div class="stat-card">
+            <i data-lucide="hard-drive" style="color:#3b82f6; width:32px; height:32px;"></i>
+            <div>
+              <div style="font-size: 1.5rem; font-weight: bold;">Disk Images</div>
+              <div class="text-muted">12 items</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i data-lucide="file" style="color:#10b981; width:32px; height:32px;"></i>
+            <div>
+              <div style="font-size: 1.5rem; font-weight: bold;">Documents</div>
+              <div class="text-muted">84 items</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <i data-lucide="database" style="color:#8b5cf6; width:32px; height:32px;"></i>
+            <div>
+              <div style="font-size: 1.5rem; font-weight: bold;">Memory Dumps</div>
+              <div class="text-muted">4 items</div>
+            </div>
+          </div>
+        </div>
+        <div class="table-container delay-2">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="evidence-list">
+              <!-- Evidence populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Analysis View -->
+      <section id="view-analysis" class="view hidden animate-fade-in">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Automated Analysis</h1>
+            <p class="text-muted">AI-powered threat detection</p>
+          </div>
+          <button class="btn" id="btn-run-analysis">
+            <i data-lucide="zap" style="width:18px;height:18px;"></i>
+            <span>Run Analysis</span>
+          </button>
+        </header>
+        
+        <div id="analysis-content-area">
+          <div style="margin-bottom: 2rem;">
+            <h2 style="font-size: 1.25rem; margin-bottom: 1rem; font-weight: 600;">Analysis Jobs</h2>
+            <div class="table-container delay-1">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Evidence ID</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody id="analysis-jobs-list">
+                  <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No analysis jobs running.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div>
+            <h2 style="font-size: 1.25rem; margin-bottom: 1rem; font-weight: 600;">AI Findings</h2>
+            <div class="table-container delay-2">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Severity</th>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Confidence</th>
+                  </tr>
+                </thead>
+                <tbody id="analysis-findings-list">
+                  <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Run analysis to discover findings.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Chat View -->
+      <section id="view-chat" class="view hidden animate-fade-in" style="height: calc(100vh - 4rem); display: none; flex-direction: column;">
+        <header class="page-header" style="flex-shrink:0;">
+          <div>
+            <h1 class="page-title">AI Assistant Chat</h1>
+            <p class="text-muted">Query investigation data using natural language</p>
+          </div>
+        </header>
+        <div class="chat-container delay-1">
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-msg ai-msg">
+              <div class="msg-avatar"><i data-lucide="message-square" style="width:20px;height:20px;"></i></div>
+              <div class="msg-bubble">Hello! I'm ready to assist with your investigation. What would you like to know?</div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <div class="chat-input-box">
+              <input type="text" id="chat-input" placeholder="Ask anything...">
+              <button class="btn" id="chat-send" style="padding: 0.5rem 1rem;">
+                <i data-lucide="send" style="width:18px;height:18px;"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Timeline View -->
+      <section id="view-timeline" class="view hidden animate-fade-in">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Event Timeline</h1>
+            <p class="text-muted">Chronological view of forensic events</p>
+          </div>
+          <button class="btn btn-secondary">
+            <i data-lucide="filter" style="width:18px;height:18px;"></i>
+            <span>Filter Events</span>
+          </button>
+        </header>
+        <div class="table-container delay-1">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Source</th>
+                <th>Provider</th>
+                <th>Event</th>
+                <th>Priority</th>
+              </tr>
+            </thead>
+            <tbody id="timeline-events-list">
+              <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading timeline...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Network View -->
+      <section id="view-network" class="view hidden animate-fade-in" style="height: calc(100vh - 4rem); display: flex; flex-direction: column;">
+        <header class="page-header" style="flex-shrink:0;">
+          <div>
+            <h1 class="page-title">Network Correlation</h1>
+            <p class="text-muted">Graph-based entity relationship visualization</p>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <div style="display: flex; align-items: center; background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; overflow: hidden;">
+              <select id="network-filter" style="background: transparent; color: white; border: none; padding: 0.5rem; outline: none;">
+                <option value="0">Show All Nodes</option>
+                <option value="1">Min Connections: 1</option>
+                <option value="2">Min Connections: 2</option>
+                <option value="5">Min Connections: 5</option>
+                <option value="custom">Custom...</option>
+              </select>
+              <input type="number" id="network-filter-custom" min="0" placeholder="Custom" style="background: rgba(0,0,0,0.3); color: white; border: none; padding: 0.5rem; width: 80px; outline: none; border-left: 1px solid rgba(255,255,255,0.1); display: none;">
+            </div>
+            <button id="btn-refresh-layout" class="btn btn-secondary">
+              <i data-lucide="refresh-cw" style="width:18px;height:18px;"></i>
+              <span>Refresh Layout</span>
+            </button>
+          </div>
+        </header>
+        <div id="cy-container" class="delay-1 tracker-bg" style="flex: 1; border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; position: relative; overflow: hidden; min-height: 400px; z-index: 1;">
+          <div class="radar-sweep"></div>
+          <div style="position: absolute; top: 1rem; left: 1rem; display: flex; gap: 0.5rem; z-index: 10;">
+            <span class="badge" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(239,68,68,0.5);"><div style="width:8px; height:8px; border-radius:50%; background:#ef4444; margin-right:4px; box-shadow: 0 0 10px #ef4444;"></div>External IP</span>
+            <span class="badge" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(14,165,233,0.5);"><div style="width:8px; height:8px; border-radius:50%; background:#0ea5e9; margin-right:4px; box-shadow: 0 0 10px #0ea5e9;"></div>Internal IP</span>
+          </div>
+          <div id="cy" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 5;"></div>
+        </div>
+      </section>
+
+      <!-- Reports View -->
+      <section id="view-reports" class="view hidden animate-fade-in">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Intelligence Reports</h1>
+            <p class="text-muted">Generated reports and case summaries</p>
+          </div>
+          <button class="btn" id="btn-generate-report">
+            <i data-lucide="file-text" style="width:18px;height:18px;"></i>
+            <span>New Report</span>
+          </button>
+        </header>
+        <div class="table-container delay-1">
+          <table>
+            <thead>
+              <tr>
+                <th>Report Name</th>
+                <th>Type</th>
+                <th>Generated On</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="reports-list">
+              <!-- Dynamically populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Settings View -->
+      <section id="view-settings" class="view hidden animate-fade-in">
+        <header class="page-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; margin-bottom: 2rem;">
+          <div>
+            <h1 class="page-title" style="background: linear-gradient(to right, #60a5fa, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">System Settings</h1>
+            <p class="text-muted">Configure models, storage, and intelligent agents</p>
+          </div>
+          <button class="btn" id="btn-save-settings" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); border: none; box-shadow: 0 0 15px rgba(139, 92, 246, 0.4); transition: transform 0.2s, box-shadow 0.2s;">
+            <i data-lucide="save" style="width:18px;height:18px;"></i>
+            <span>Save Changes</span>
+          </button>
+        </header>
+        
+        <div class="features-grid delay-1" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem;">
+          
+          <!-- AI Engine Settings -->
+          <div class="feature-card" style="background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(139, 92, 246, 0.2); border-top: 3px solid #8b5cf6; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+              <div style="background: rgba(139, 92, 246, 0.2); padding: 0.5rem; border-radius: 0.5rem; color: #a78bfa;">
+                <i data-lucide="cpu"></i>
+              </div>
+              <h3 class="feature-title" style="margin: 0; font-size: 1.25rem;">AI Engine Settings</h3>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+              <div>
+                <label style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #cbd5e1; font-weight: 500;">
+                  <span>Anomaly Threshold</span>
+                  <span style="color: #8b5cf6; font-family: monospace;">0.0 - 1.0</span>
+                </label>
+                <input type="number" id="setting-anomaly-threshold" step="0.05" min="0" max="1" placeholder="0.8" style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(139, 92, 246, 0.3); color: white; border-radius: 0.5rem; outline: none; transition: border-color 0.3s, box-shadow 0.3s;" onfocus="this.style.boxShadow='0 0 10px rgba(139, 92, 246, 0.5)'; this.style.borderColor='#8b5cf6'" onblur="this.style.boxShadow='none'; this.style.borderColor='rgba(139, 92, 246, 0.3)'">
+                <p style="font-size: 0.75rem; color: #64748b; margin-top: 0.5rem;">Lower values make the AI more aggressive at flagging suspicious activity.</p>
+              </div>
+              
+              <div>
+                <label style="display: block; margin-bottom: 0.5rem; color: #cbd5e1; font-weight: 500;">Default Timezone</label>
+                <div style="position: relative;">
+                  <i data-lucide="globe" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #64748b; width: 18px; height: 18px;"></i>
+                  <input type="text" id="setting-timezone" placeholder="UTC" style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none; transition: all 0.3s;" onfocus="this.style.boxShadow='0 0 10px rgba(59, 130, 246, 0.3)'; this.style.borderColor='#3b82f6'" onblur="this.style.boxShadow='none'; this.style.borderColor='rgba(255,255,255,0.1)'">
+                </div>
+              </div>
+              
+              <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div>
+                  <div style="color: #e2e8f0; font-weight: 500;">Hardware Acceleration</div>
+                  <div style="font-size: 0.75rem; color: #64748b;">Use GPU for LLM inference</div>
+                </div>
+                <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                  <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                  <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #8b5cf6; transition: .4s; border-radius: 34px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);"></span>
+                  <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 24px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Correlation Engine -->
+          <div class="feature-card" style="background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(16, 185, 129, 0.2); border-top: 3px solid #10b981; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+              <div style="background: rgba(16, 185, 129, 0.2); padding: 0.5rem; border-radius: 0.5rem; color: #34d399;">
+                <i data-lucide="git-merge"></i>
+              </div>
+              <h3 class="feature-title" style="margin: 0; font-size: 1.25rem;">Correlation Engine</h3>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+              <div>
+                <label style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #cbd5e1; font-weight: 500;">
+                  <span>Temporal Window</span>
+                  <span style="color: #10b981; font-family: monospace;">Seconds</span>
+                </label>
+                <div style="position: relative;">
+                  <i data-lucide="clock" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #64748b; width: 18px; height: 18px;"></i>
+                  <input type="number" id="setting-time-window" min="1" placeholder="3600" style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.3); color: white; border-radius: 0.5rem; outline: none; transition: all 0.3s;" onfocus="this.style.boxShadow='0 0 10px rgba(16, 185, 129, 0.3)'; this.style.borderColor='#10b981'" onblur="this.style.boxShadow='none'; this.style.borderColor='rgba(16, 185, 129, 0.3)'">
+                </div>
+                <p style="font-size: 0.75rem; color: #64748b; margin-top: 0.5rem;">Maximum time gap to correlate seemingly unrelated events.</p>
+              </div>
+              
+              <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div>
+                  <div style="color: #e2e8f0; font-weight: 500;">Cross-Case Correlation</div>
+                  <div style="font-size: 0.75rem; color: #64748b;">Link indicators across different investigations</div>
+                </div>
+                <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                  <input type="checkbox" style="opacity: 0; width: 0; height: 0;">
+                  <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 34px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);"></span>
+                  <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: #94a3b8; transition: .4s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Autonomous Agents -->
+          <div class="feature-card" style="background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(245, 158, 11, 0.2); border-top: 3px solid #f59e0b; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+              <div style="background: rgba(245, 158, 11, 0.2); padding: 0.5rem; border-radius: 0.5rem; color: #fbbf24;">
+                <i data-lucide="bot"></i>
+              </div>
+              <h3 class="feature-title" style="margin: 0; font-size: 1.25rem;">Autonomous Agents</h3>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <div style="color: #e2e8f0; font-weight: 500;">Background Intelligence</div>
+                  <div style="font-size: 0.75rem; color: #64748b;">Agents continuously scan OSINT sources</div>
+                </div>
+                <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                  <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                  <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #f59e0b; transition: .4s; border-radius: 34px;"></span>
+                  <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 24px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                </label>
+              </div>
+              
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <div style="color: #e2e8f0; font-weight: 500;">Auto-Reporting</div>
+                  <div style="font-size: 0.75rem; color: #64748b;">Generate draft reports on milestone completion</div>
+                </div>
+                <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                  <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                  <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #f59e0b; transition: .4s; border-radius: 34px;"></span>
+                  <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 24px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                </label>
+              </div>
+              
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <div style="color: #e2e8f0; font-weight: 500;">Automated Remediation</div>
+                  <div style="font-size: 0.75rem; color: #64748b;">Allow agents to block IPs automatically <span class="badge danger" style="margin-left:4px; font-size: 0.6rem;">High Risk</span></div>
+                </div>
+                <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                  <input type="checkbox" style="opacity: 0; width: 0; height: 0;">
+                  <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 34px;"></span>
+                  <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: #94a3b8; transition: .4s; border-radius: 50%;"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Data Storage & Retention -->
+          <div class="feature-card" style="background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(59, 130, 246, 0.2); border-top: 3px solid #3b82f6; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+              <div style="background: rgba(59, 130, 246, 0.2); padding: 0.5rem; border-radius: 0.5rem; color: #60a5fa;">
+                <i data-lucide="hard-drive"></i>
+              </div>
+              <h3 class="feature-title" style="margin: 0; font-size: 1.25rem;">Storage & Retention</h3>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+              <div>
+                <label style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #cbd5e1; font-weight: 500;">
+                  <span>Evidence Path</span>
+                </label>
+                <div style="position: relative;">
+                  <i data-lucide="folder" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #64748b; width: 18px; height: 18px;"></i>
+                  <input type="text" value="/mnt/storage/evidence" readonly style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.05); color: #94a3b8; border-radius: 0.5rem; outline: none; cursor: not-allowed;">
+                </div>
+              </div>
+              
+              <div>
+                <label style="display: block; margin-bottom: 0.5rem; color: #cbd5e1; font-weight: 500;">Retention Policy</label>
+                <select style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(59, 130, 246, 0.3); color: white; border-radius: 0.5rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='rgba(59, 130, 246, 0.3)'">
+                  <option value="90">90 Days (Compliance Minimum)</option>
+                  <option value="180">180 Days (Recommended)</option>
+                  <option value="365">1 Year (Extended)</option>
+                  <option value="0" selected>Keep Indefinitely</option>
+                </select>
+              </div>
+              
+              <button class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem; justify-content: center; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <i data-lucide="trash-2" style="width:16px;height:16px;margin-right:8px;"></i>
+                Clear Local Cache
+              </button>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div id="new-case-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 style="font-size: 1.25rem;">Create New Case</h2>
+        <button id="btn-close-modal" class="btn btn-secondary" style="padding: 0.25rem;">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
         </button>
-        <div style="text-align:center;margin-top:16px">
-          <a onclick="showRegister()" style="color:#5de6ff;cursor:pointer;font:500 12px/1 'JetBrains Mono',monospace;text-decoration:none;letter-spacing:0.05em;transition:color .2s" onmouseover="this.style.color='#a2eeff'" onmouseout="this.style.color='#5de6ff'">◈ REGISTER NEW AGENCY PROFILE</a>
-        </div>
       </div>
-
-      <!-- Register Form (hidden by default) -->
-      <div id="registerForm" style="display:none;background:rgba(15,23,42,0.7);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);padding:28px 24px;border-radius:8px">
-        <div style="margin-bottom:14px">
-          <label style="display:block;font:500 11px/1 'JetBrains Mono',monospace;color:#8c909f;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">USERNAME</label>
-          <input id="regUser" type="text" placeholder="analyst1" style="width:100%;background:#191f31;color:#dce1fb;border:1px solid #424754;padding:12px 14px;font:400 14px 'Inter',sans-serif;border-radius:4px;outline:none" onfocus="this.style.borderColor='#5de6ff';this.style.boxShadow='0 0 12px rgba(93,230,255,0.2)'" onblur="this.style.borderColor='#424754';this.style.boxShadow='none'" />
+      <form id="new-case-form" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Case Number</label>
+          <input type="text" id="case-number" required style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none;">
         </div>
-        <div style="margin-bottom:14px">
-          <label style="display:block;font:500 11px/1 'JetBrains Mono',monospace;color:#8c909f;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">FULL NAME</label>
-          <input id="regName" type="text" placeholder="A. Rivera" style="width:100%;background:#191f31;color:#dce1fb;border:1px solid #424754;padding:12px 14px;font:400 14px 'Inter',sans-serif;border-radius:4px;outline:none" onfocus="this.style.borderColor='#5de6ff';this.style.boxShadow='0 0 12px rgba(93,230,255,0.2)'" onblur="this.style.borderColor='#424754';this.style.boxShadow='none'" />
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Case Name</label>
+          <input type="text" id="case-name" required style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none;">
         </div>
-        <div style="margin-bottom:14px">
-          <label style="display:block;font:500 11px/1 'JetBrains Mono',monospace;color:#8c909f;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">PASSPHRASE</label>
-          <input id="regPass" type="password" placeholder="••••••••" style="width:100%;background:#191f31;color:#dce1fb;border:1px solid #424754;padding:12px 14px;font:400 14px 'Inter',sans-serif;border-radius:4px;outline:none" onfocus="this.style.borderColor='#5de6ff';this.style.boxShadow='0 0 12px rgba(93,230,255,0.2)'" onblur="this.style.borderColor='#424754';this.style.boxShadow='none'" />
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Description</label>
+          <textarea id="case-desc" required style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none; min-height: 80px;"></textarea>
         </div>
-        <div id="regErr" style="color:#ffb4ab;font:400 12px/1.4 'Inter',sans-serif;text-align:center;margin-bottom:10px;display:none"></div>
-        <button type="button" onclick="doRegister()" style="width:100%;background:#005ac2;color:#fff;border:none;padding:12px;font:500 12px/1 'JetBrains Mono',monospace;text-transform:uppercase;border-radius:4px;cursor:pointer;transition:all .3s">REGISTER ACCOUNT</button>
-        <div style="text-align:center;margin-top:14px">
-          <a onclick="showLogin()" style="color:#5de6ff;cursor:pointer;font:500 11px/1 'JetBrains Mono',monospace">← Back to Sign In</a>
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Incident Date</label>
+          <input type="date" id="case-date" required style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none; color-scheme: dark;">
         </div>
-      </div>
-
-      <!-- Demo Credentials -->
-      <div style="background:rgba(93,230,255,0.06);border:1px solid rgba(93,230,255,0.2);border-radius:6px;padding:14px 18px;display:flex;align-items:center;gap:10px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5de6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        <div style="font:400 12px/1.5 'JetBrains Mono',monospace;color:#8c909f">Demo credentials: <span style="color:#5de6ff;font-weight:600">admin</span> / <span style="color:#5de6ff;font-weight:600">ChangeMe123!</span></div>
-      </div>
-
-      <!-- Trust Indicators (live from /api/health) -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding-top:24px;border-top:1px solid rgba(66,71,84,0.3)">
-        <div><span id="statLatency" style="font:400 13px/1.4 'JetBrains Mono',monospace;color:#5de6ff">—</span><br><span style="font:500 10px/1 'JetBrains Mono',monospace;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em">QUERY LATENCY</span></div>
-        <div><span id="statThreat" style="font:400 13px/1.4 'JetBrains Mono',monospace;color:#5de6ff">—</span><br><span style="font:500 10px/1 'JetBrains Mono',monospace;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em">ANOMALY THRESHOLD</span></div>
-        <div><span id="statVersion" style="font:400 13px/1.4 'JetBrains Mono',monospace;color:#5de6ff">—</span><br><span style="font:500 10px/1 'JetBrains Mono',monospace;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em">SYSTEM VERSION</span></div>
-      </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+          <button type="submit" class="btn" id="btn-submit-case">Create Case</button>
+        </div>
+      </form>
     </div>
+  </div>
 
-    <!-- Right Column: Shader Animation -->
-    <div style="height:600px;position:relative;display:flex;align-items:center;justify-content:center">
-      <!-- Decorative frame -->
-      <div style="position:absolute;inset:32px;border:1px solid rgba(66,71,84,0.4);border-radius:8px;background:rgba(15,23,42,0.5);backdrop-filter:blur(12px);overflow:hidden">
-        <!-- Corner brackets -->
-        <div style="position:absolute;top:0;left:0;width:32px;height:32px;border-top:2px solid rgba(93,230,255,0.7);border-left:2px solid rgba(93,230,255,0.7);margin:12px"></div>
-        <div style="position:absolute;top:0;right:0;width:32px;height:32px;border-top:2px solid rgba(93,230,255,0.7);border-right:2px solid rgba(93,230,255,0.7);margin:12px"></div>
-        <div style="position:absolute;bottom:0;left:0;width:32px;height:32px;border-bottom:2px solid rgba(93,230,255,0.7);border-left:2px solid rgba(93,230,255,0.7);margin:12px"></div>
-        <div style="position:absolute;bottom:0;right:0;width:32px;height:32px;border-bottom:2px solid rgba(93,230,255,0.7);border-right:2px solid rgba(93,230,255,0.7);margin:12px"></div>
-        <!-- Scan line -->
-        <div style="position:absolute;width:100%;height:2px;background:linear-gradient(to right,transparent,#5de6ff,transparent);box-shadow:0 0 10px #5de6ff;animation:scan 3s linear infinite;top:-10px"></div>
-        <!-- Shader canvas -->
-        <canvas id="shader-canvas" style="display:block;width:100%;height:100%"></canvas>
-        <!-- Grid overlay -->
-        <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(140,144,159,0.2) 1px,transparent 1px);background-size:8px 8px;opacity:0.4;mix-blend-mode:overlay;pointer-events:none"></div>
+  <div id="upload-evidence-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 style="font-size: 1.25rem;">Upload Evidence</h2>
+        <button id="btn-close-upload-modal" class="btn btn-secondary" style="padding: 0.25rem;">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <form id="upload-evidence-form" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <div id="upload-case-selector-container">
+          <!-- Case selector will be injected here -->
+        </div>
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Select File</label>
+          <input type="file" id="evidence-file" required style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none;">
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+          <button type="submit" class="btn" id="btn-submit-upload">Upload File</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="finding-details-modal" class="modal hidden">
+    <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto; margin: 2rem auto;">
+      <div class="modal-header">
+        <h2 style="font-size: 1.25rem;">Finding Details</h2>
+        <button id="btn-close-finding-modal" class="btn btn-secondary" style="padding: 0.25rem;">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <div id="finding-details-content" style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1rem; color: #cbd5e1;">
+        <!-- Injected via JS -->
       </div>
     </div>
   </div>
-</div>
 
-<script>
-// WebGL Shader Animation
-(function() {
-  var canvas = document.getElementById('shader-canvas');
-  if (!canvas) return;
-  function syncSize() {
-    var w = canvas.clientWidth || 800;
-    var h = canvas.clientHeight || 600;
-    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-  }
-  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncSize).observe(canvas);
-  syncSize();
-  var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-  if (!gl) return;
-  var vs = 'attribute vec2 a_position; varying vec2 v_texCoord; void main() { v_texCoord = a_position * 0.5 + 0.5; gl_Position = vec4(a_position, 0.0, 1.0); }';
-  var fs = 'precision highp float; uniform float u_time; uniform vec2 u_resolution; varying vec2 v_texCoord; void main() { vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y); float angle = u_time * 0.2; mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)); vec2 rotatedUv = rot * uv; float d = length(uv); float core = 0.05 / abs(d - 0.2 * (1.0 + 0.1 * sin(u_time * 2.0))); float rings = 0.02 / abs(d - 0.5); rings += 0.01 / abs(d - 0.7 + 0.05 * sin(u_time + rotatedUv.x * 5.0)); float beams = pow(max(0.0, cos(atan(rotatedUv.y, rotatedUv.x) * 3.0 + u_time)), 10.0) * (1.0 - smoothstep(0.5, 0.8, d)); vec3 cyan = vec3(0.36, 0.90, 1.0); vec3 blue = vec3(0.30, 0.56, 1.0); vec3 violet = vec3(0.63, 0.49, 1.0); vec3 color = mix(blue, cyan, sin(u_time) * 0.5 + 0.5) * core; color += mix(cyan, violet, cos(u_time * 0.5) * 0.5 + 0.5) * rings; color += cyan * beams * 0.5; color += blue * 0.08 * (1.0 - d); gl_FragColor = vec4(color, 1.0); }';
-  function cs(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
-  var prog = gl.createProgram(); gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
-  var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-  var pos = gl.getAttribLocation(prog, 'a_position'); gl.enableVertexAttribArray(pos); gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
-  var uTime = gl.getUniformLocation(prog, 'u_time'); var uRes = gl.getUniformLocation(prog, 'u_resolution');
-  function render(t) { if (typeof ResizeObserver === 'undefined') syncSize(); gl.viewport(0, 0, canvas.width, canvas.height); if (uTime) gl.uniform1f(uTime, t * 0.001); if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(render); }
-  render(0);
-})();
-</script>
-
-<!-- ═══════════════ MAIN APPLICATION ═══════════════ -->
-<div id="appShell" class="shell" style="display:none">
-  <div class="sidebar-overlay" onclick="toggleMobileMenu()"></div>
-  <aside class="sidebar">
-    <div class="brand"><span class="mark">T</span> TACTIC</div>
-
-    <div class="case-select">
-      <div class="metric">ACTIVE CASE</div>
-      <select id="caseSelect" onchange="onCaseChange(this.value)"><option value="">SELECT INVESTIGATION…</option></select>
-      <small id="caseMeta">No active case pinned</small>
-    </div>
-
-    <div class="nav-label">INVESTIGATION</div>
-    <button class="nav active" data-view="dashboard">Case Dashboard</button>
-    <button class="nav" data-view="cases">Case Management</button>
-    <button class="nav" data-view="intake">Evidence Intake</button>
-    <button class="nav" data-view="evidence">Evidence Details</button>
-    <button class="nav" data-view="artifactTable">Artifact Table</button>
-
-    <div class="nav-label">ANALYSIS</div>
-    <button class="nav" data-view="analysis">Analysis Hub</button>
-    <button class="nav" data-view="graph">Relationship Graph</button>
-    <button class="nav" data-view="timeline">Investigation Timeline</button>
-    <button class="nav" data-view="suspicious">Suspicious Events</button>
-    <button class="nav" data-view="iocs">IOC Management</button>
-    <button class="nav" data-view="assistant">AI Assistant</button>
-
-    <div class="nav-label">OUTPUT & ACCESS</div>
-    <button class="nav" data-view="report">Report Generator</button>
-    <button class="nav" data-view="access">Users & Roles</button>
-    <button class="nav" data-view="profile">My Profile</button>
-    <button class="nav" data-view="audit">Audit Trail</button>
-
-    <div class="nav-label">ADVANCED FORENSICS</div>
-    <button class="nav" data-view="decrypt">Decrypt Engine</button>
-    <button class="nav" data-view="hunt">Telemetry Hunt</button>
-    <button class="nav" data-view="processing">Processing Status</button>
-    <button class="nav" data-view="modelEval">Model Management</button>
-
-    <div class="status"><span class="pulse"></span>CASE VAULT VERIFIED</div>
-  </aside>
-
-  <main class="main">
-    <header class="topbar">
-      <div class="crumb">TACTIC OS / <span id="location">INTELLIGENCE DASHBOARD</span></div>
-      <button class="menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle navigation">☰ MENU</button>
-      <div class="top-actions">
-        <div style="position:relative">
-          <input id="globalSearch" type="text" placeholder="Search cases, evidence, findings…" oninput="globalSearch(this.value)" style="background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:6px 10px;font:11px 'JetBrains Mono',monospace;width:200px;border-radius:3px;outline:none" onfocus="this.style.borderColor='var(--cyan)'" onblur="this.style.borderColor='#29425f'" />
-          <div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:#0d1420;border:1px solid var(--line);max-height:250px;overflow:auto;z-index:50;border-radius:0 0 3px 3px"></div>
-        </div>
-        <button class="btn" onclick="toggleTheme()" id="themeToggle" style="padding:6px 10px;font-size:10px">☀ LIGHT</button>
-        <span class="clock" id="clock"></span>
-        <span class="user-pill" id="userPill">ANALYST</span>
-        <button class="btn" onclick="doLogout()" style="padding:6px 10px;font-size:10px">SIGN OUT</button>
-      </div>
-    </header>
-
-    <!-- ─── DASHBOARD ─── -->
-    <section id="dashboard" class="view active">
-      <h1>Intelligence Dashboard</h1>
-      <p class="lead">Operational overview for the active forensic investigation.</p>
-      <div class="grid stats" id="dashStats"></div>
-      <div class="grid two" style="margin-top:16px">
-        <div class="card">
-          <h2>Evidence queue</h2>
-          <table class="table"><thead><tr><th>ITEM</th><th>TYPE</th><th>STATUS</th></tr></thead>
-          <tbody id="dashEvidence"><tr><td colspan="3" style="color:var(--muted)">Select a case to view evidence</td></tr></tbody></table>
-        </div>
-        <div class="card">
-          <h2>Case progress</h2>
-          <div class="metric">AI THREAT ANALYSIS</div>
-          <div class="progress"><i id="dashProgress" style="width:0%"></i></div>
-          <b id="dashProgressLabel">0% complete</b>
-          <div id="dashAlert" class="alert info" style="margin-top:12px">Select a case and run analysis to populate findings.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── CASE MANAGEMENT ─── -->
-    <section id="cases" class="view">
-      <h1>Case Management</h1>
-      <p class="lead">Create, assign, and track investigations with a complete audit trail.</p>
-      <div class="toolbar">
-        <button class="btn primary" onclick="toggleCreateCase()">+ Create case</button>
-        <button class="btn" onclick="loadCases()">↻ Refresh</button>
-      </div>
-      <div id="createCaseForm" style="display:none;margin-bottom:16px" class="card">
-        <h2>New Investigation Case</h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div><label class="field-label">CASE NUMBER</label><input id="newCaseNum" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:10px;font:12px inherit" placeholder="TR-8842-OMEGA" /></div>
-          <div><label class="field-label">CASE NAME</label><input id="newCaseName" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:10px;font:12px inherit" placeholder="Suspected lateral movement" /></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-          <div><label class="field-label">INCIDENT DATE</label><input id="newCaseDate" type="date" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:10px;font:12px inherit" /></div>
-          <div><label class="field-label">DESCRIPTION</label><input id="newCaseDesc" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:10px;font:12px inherit" placeholder="Investigation details…" /></div>
-        </div>
-        <div class="toolbar"><button class="btn primary" onclick="createCase()">Commit Case File</button></div>
-      </div>
-      <div class="card"><table class="table"><thead><tr><th>CASE ID</th><th>TITLE</th><th>DATE</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
-      <tbody id="casesTable"><tr><td colspan="5" style="color:var(--muted)">Loading cases…</td></tr></tbody></table></div>
-    </section>
-
-    <!-- ─── EVIDENCE INTAKE ─── -->
-    <section id="intake" class="view">
-      <h1>Evidence Intake</h1>
-      <p class="lead">Add forensic files and preserve their integrity from the moment they enter the case vault.</p>
-      <div class="grid two">
-        <div class="card">
-          <h2>Secure evidence upload</h2>
-          <div class="console" id="intakeConsole">
-            <span class="out">CASE VAULT READY</span><br><br>
-            Accepted: disk images, memory dumps, event logs, PCAP, archives, documents, and hash lists.<br><br>
-            Every intake automatically receives a SHA-256 hash, acquisition timestamp, and chain-of-custody entry.
-          </div>
-          <div style="margin-top:12px">
-            <label class="field-label">TARGET CASE</label>
-            <select id="intakeCase" class="field"></select>
-          </div>
-          <div style="margin-top:12px">
-            <label class="field-label">EVIDENCE FILE(S)</label>
-            <input type="file" id="intakeFile" multiple style="color:var(--muted);font-size:11px" />
-          </div>
-          <div id="uploadProgress" style="display:none;margin-top:10px">
-            <div class="progress"><i id="uploadBar" style="width:0%"></i></div>
-            <span id="uploadLabel" class="metric">Uploading…</span>
-          </div>
-          <div class="toolbar">
-            <button class="btn primary" id="uploadBtn" onclick="uploadEvidence()" disabled>Upload Evidence</button>
-          </div>
-          <div id="uploadMsg" style="font-size:11px;margin-top:8px"></div>
-        </div>
-        <div class="card">
-          <h2>Recent intake</h2>
-          <table class="table"><thead><tr><th>FILENAME</th><th>SHA-256</th></tr></thead>
-          <tbody id="intakeRecent"><tr><td colspan="2" style="color:var(--muted)">No evidence yet</td></tr></tbody></table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── EVIDENCE DETAILS ─── -->
-    <section id="evidence" class="view">
-      <h1>Evidence Details</h1>
-      <p class="lead">Review provenance, extracted artifacts, integrity, and AI-assisted findings for each item.</p>
-      <div class="toolbar">
-        <button class="btn" onclick="loadEvidenceDetails()">↻ Refresh evidence list</button>
-        <button class="btn" onclick="exportData('evidence','csv')">Export CSV</button>
-        <button class="btn" onclick="exportData('evidence','json')">Export JSON</button>
-      </div>
-      <div class="grid two" id="evidenceGrid">
-        <div class="card"><p style="color:var(--muted)">Select a case and click refresh to view evidence items.</p></div>
-      </div>
-    </section>
-
-
-    <!-- ─── ARTIFACT TABLE ─── -->
-    <section id="artifactTable" class="view">
-      <h1>Artifact Table</h1>
-      <p class="lead">Search and filter extracted forensic artifacts across all evidence sources with 12 filter dimensions.</p>
-      
-      <!-- Filter Bar -->
-      <div class="card" style="margin-bottom:16px">
-        <h2>Filters</h2>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
-          <div><label class="field-label">ARTIFACT TYPE</label><select id="fArtType" class="field" onchange="loadFilteredArtifacts()"><option value="">All Types</option></select></div>
-          <div><label class="field-label">EXTRACTOR</label><select id="fExtractor" class="field" onchange="loadFilteredArtifacts()"><option value="">All Extractors</option></select></div>
-          <div><label class="field-label">VALUE CONTAINS</label><input id="fValue" type="text" placeholder="Search value..." oninput="debounceArtifacts()" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:8px;font:11px inherit" /></div>
-          <div><label class="field-label">SOURCE EVIDENCE</label><select id="fSource" class="field" onchange="loadFilteredArtifacts()"><option value="">All Sources</option></select></div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
-          <div><label class="field-label">MIN CONFIDENCE</label><input id="fMinConf" type="number" min="0" max="1" step="0.1" placeholder="0.0" oninput="debounceArtifacts()" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:8px;font:11px inherit" /></div>
-          <div><label class="field-label">MAX CONFIDENCE</label><input id="fMaxConf" type="number" min="0" max="1" step="0.1" placeholder="1.0" oninput="debounceArtifacts()" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:8px;font:11px inherit" /></div>
-          <div><label class="field-label">USERNAME</label><input id="fUsername" type="text" placeholder="Filter username..." oninput="debounceArtifacts()" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:8px;font:11px inherit" /></div>
-          <div><label class="field-label">IP ADDRESS</label><input id="fIpAddr" type="text" placeholder="Filter IP..." oninput="debounceArtifacts()" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:8px;font:11px inherit" /></div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
-          <div><label class="field-label">DATE FROM</label><input id="fDateFrom" type="date" onchange="loadFilteredArtifacts()" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:8px;font:11px inherit" /></div>
-          <div><label class="field-label">DATE TO</label><input id="fDateTo" type="date" onchange="loadFilteredArtifacts()" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:8px;font:11px inherit" /></div>
-          <div><label class="field-label">SUSPICIOUS ONLY</label><select id="fSuspicious" class="field" onchange="loadFilteredArtifacts()"><option value="">All</option><option value="true">Suspicious Only</option><option value="false">Normal Only</option></select></div>
-          <div style="display:flex;align-items:end;gap:6px"><button class="btn primary" onclick="loadFilteredArtifacts()">Apply Filters</button><button class="btn" onclick="clearArtifactFilters()">Clear</button></div>
-        </div>
-        <div id="artifactFilterStatus" style="font-size:10px;color:var(--muted)"></div>
-      </div>
-      
-      <!-- Results -->
-      <div class="card">
-        <div class="toolbar">
-          <button class="btn" onclick="loadFilteredArtifacts()">↻ Refresh</button>
-          <button class="btn" onclick="exportArtifactCSV()">Export CSV</button>
-        </div>
-        <div class="table-wrap">
-          <table class="table"><thead><tr><th>TIMESTAMP</th><th>TYPE</th><th>VALUE</th><th>CONFIDENCE</th><th>EXTRACTOR</th><th>SOURCE</th><th>CONTEXT</th></tr></thead>
-          <tbody id="artifactTableBody"><tr><td colspan="7" style="color:var(--muted)">Select a case and click Apply Filters</td></tr></tbody></table>
-        </div>
-        <div id="artifactPagination" style="margin-top:10px"></div>
-      </div>
-    </section>
-    <!-- ─── ANALYSIS HUB ─── -->
-    <section id="analysis" class="view">
-      <h1>Forensic Analysis Hub</h1>
-      <p class="lead">Submit evidence to specialized analysis pipelines and review findings in one place.</p>
-      <div class="toolbar">
-        <button class="btn primary" id="runAnalysisBtn" onclick="runAnalysis()">+ Run AI Analysis</button>
-        <button class="btn" onclick="loadAnalysisResults()">↻ Refresh</button>
-        <button class="btn" onclick="loadReviewSummary()" style="border-color:#4ee2a4;color:#4ee2a4">📋 Review Findings</button>
-      </div>
-      <div id="analysisStatus" style="font-size:11px;color:var(--muted);margin-bottom:12px"></div>
-      <div class="grid three" id="analysisCards">
-        <div class="card"><h2>AI Findings</h2><div class="value" id="aFindings">—</div><div class="metric">FLAGGED INDICATORS</div></div>
-        <div class="card"><h2>Evidence Analyzed</h2><div class="value" id="aEvidence">—</div><div class="metric">ARTIFACTS PROCESSED</div></div>
-        <div class="card"><h2>Correlations</h2><div class="value" id="aCorrelations">—</div><div class="metric">CROSS-EVIDENCE LINKS</div></div>
-      </div>
-      <div class="card" style="margin-top:16px">
-        <h2>Findings Detail</h2>
-        <table class="table"><thead><tr><th>TITLE</th><th>SEVERITY</th><th>CATEGORY</th><th>RISK</th><th class="hide-tablet">EXPLANATION</th></tr></thead>
-        <tbody id="findingsTable"><tr><td colspan="5" style="color:var(--muted)">Run analysis to generate findings</td></tr></tbody></table>
-      </div>
-
-      <!-- Review Panel -->
-      <div id="reviewPanel" style="display:none;margin-top:16px" class="card">
-        <h2>Human-in-the-Loop Review</h2>
-        <div id="reviewSummary" style="margin-bottom:12px;font-size:11px;color:var(--muted)"></div>
-        <div id="reviewActions" style="margin-bottom:12px;display:none">
-          <button class="btn" onclick="bulkReview('approved')" style="border-color:#4ee2a4;color:#4ee2a4">✓ Approve All Pending</button>
-          <button class="btn" onclick="bulkReview('rejected')" style="border-color:#ff6077;color:#ff6077">✗ Reject All Pending</button>
-        </div>
-        <table class="table"><thead><tr><th>FINDING</th><th>SEVERITY</th><th>STATUS</th><th>REVIEWER</th><th>ACTIONS</th></tr></thead>
-        <tbody id="reviewTable"><tr><td colspan="5" style="color:var(--muted)">Loading...</td></tr></tbody></table>
-      </div>
-    </section>
-
-    <!-- ─── RELATIONSHIP GRAPH ─── -->
-    <section id="graph" class="view">
-      <h1>Evidence Relationship Graph</h1>
-      <p class="lead">Trace relationships across indicators, systems, identities, and acquired evidence.</p>
-      <div class="card">
-        <div class="toolbar">
-          <button class="btn" onclick="loadCorrelation()">↻ Recalculate layout</button>
-        </div>
-        <div class="map" style="height:420px" id="graphMap">
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px">Select a case and click recalculate</div>
-        </div>
-      </div>
-      <div class="card" style="margin-top:16px">
-        <h2>Node &amp; Link Details</h2>
-        <div id="graphDetails" style="color:var(--muted);font-size:11px">Click a node on the graph to inspect.</div>
-      </div>
-    </section>
-
-    <!-- ─── TIMELINE ─── -->
-    <section id="timeline" class="view">
-      <h1>Investigation Timeline</h1>
-      <p class="lead">Chronological event reconstruction for the active investigation.</p>
-      <div class="toolbar">
-        <button class="btn" onclick="loadTimeline()">↻ Refresh timeline</button>
-        <button class="btn" id="suspToggle" onclick="toggleSuspicious()">Filter suspicious only</button>
-        <button class="btn" onclick="exportData('timeline','csv')">Export CSV</button>
-        <button class="btn" onclick="exportData('timeline','json')">Export JSON</button>
-      </div>
-      <div class="card">
-        <div class="timeline" id="timelineEvents">
-          <div style="color:var(--muted);font-size:11px;padding:20px">Select a case to view timeline events.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── IOC MANAGEMENT ─── -->
-    <section id="iocs" class="view">
-      <h1>IOC Management</h1>
-      <p class="lead">Collect, score, and correlate indicators of compromise across every evidence source.</p>
-      <div class="toolbar">
-        <button class="btn" onclick="loadIOCs()">↻ Refresh IOCs</button>
-      </div>
-      <div class="card">
-        <table class="table"><thead><tr><th>INDICATOR</th><th>TYPE</th><th>SEVERITY</th><th>REASON</th></tr></thead>
-        <tbody id="iocsTable"><tr><td colspan="4" style="color:var(--muted)">Run analysis and correlation to populate IOCs</td></tr></tbody></table>
-      </div>
-    </section>
-
-    <!-- ─── AI ASSISTANT ─── -->
-    <section id="assistant" class="view">
-      <h1>T.A.C.T.I.C. AI Assistant</h1>
-      <p class="lead">Ask for a grounded summary of the current investigation data.</p>
-      <div class="grid two">
-        <div class="chat" id="chatMessages">
-          <div class="bubble ai">◈ SECURE CHAT CONSOLE ONLINE. Ask questions regarding findings, evidence logs, or correlation timelines.</div>
-        </div>
-        <div class="card">
-          <h2>Suggested prompts</h2>
-          <button class="btn" style="width:100%;text-align:left;margin-bottom:8px" onclick="sendChat('What suspicious activities exist?')">What suspicious activities exist?</button>
-          <button class="btn" style="width:100%;text-align:left;margin-bottom:8px" onclick="sendChat('Explain the findings')">Explain the findings</button>
-          <button class="btn" style="width:100%;text-align:left;margin-bottom:8px" onclick="sendChat('What files are suspicious?')">What files are suspicious?</button>
-          <button class="btn" style="width:100%;text-align:left" onclick="sendChat('Draft an executive summary.')">Draft an executive summary</button>
-        </div>
-      </div>
-      <div class="inputrow" style="margin-top:12px">
-        <input id="chatInput" placeholder="Ask TACTIC about this case…" onkeydown="if(event.key==='Enter')sendChat()" />
-        <button class="btn primary" onclick="sendChat()">Send</button>
-      </div>
-    </section>
-
-    <!-- ─── REPORT GENERATOR ─── -->
-    <section id="report" class="view">
-      <h1>Forensic Report Generator</h1>
-      <p class="lead">Assemble verified findings into a defensible investigation report.</p>
-      <div class="toolbar">
-        <button class="btn primary" id="genReportBtn" onclick="generateReport('pdf')">Export PDF Report</button>
-        <button class="btn" onclick="generateReport('docx')">Export DOCX Report</button>
-        <button class="btn" onclick="loadReports()">↻ Refresh</button>
-      </div>
-      <div id="reportStatus" style="font-size:11px;color:var(--muted);margin-bottom:12px"></div>
-      <div class="card">
-        <h2>Generated Reports</h2>
-        <table class="table"><thead><tr><th>FILENAME</th><th>FORMAT</th><th>GENERATED</th><th>ACTIONS</th></tr></thead>
-        <tbody id="reportsTable"><tr><td colspan="4" style="color:var(--muted)">No reports generated yet</td></tr></tbody></table>
-      </div>
-      <div id="reportPreviewBox" class="card" style="display:none;margin-top:16px">
-        <h2>Report Preview</h2>
-        <div id="reportPreviewContent" style="background:#f2f5fa;min-height:400px;border:1px solid #ddd"></div>
-      </div>
-    </section>
-
-    <!-- ─── USERS & ROLES ─── -->
-    <section id="access" class="view">
-      <h1>Users &amp; Roles</h1>
-      <p class="lead">Control access to case evidence and maintain a defensible investigation audit trail.</p>
-      <div class="grid two">
-        <div class="card">
-          <h2>Case team</h2>
-          <table class="table"><thead><tr><th>USERNAME</th><th>FULL NAME</th><th>ROLE</th></tr></thead>
-          <tbody id="usersTable"><tr><td colspan="3" style="color:var(--muted)">Loading users…</td></tr></tbody></table>
-        </div>
-        <div class="card">
-          <h2>System health</h2>
-          <div class="metric">SYSTEM STATUS</div>
-          <div class="value" id="healthStatus" style="color:var(--green)">—</div>
-          <div class="progress"><i id="storageBar" style="width:0%"></i></div>
-          <span class="metric" id="storageLabel">Storage: checking…</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── DECRYPT ENGINE ─── -->
-    <section id="decrypt" class="view">
-      <h1>Decrypt Engine</h1>
-      <p class="lead">Analyze encrypted evidence files for recovery opportunities and entropy patterns.</p>
-      <div class="grid two">
-        <div class="card">
-          <h2>Evidence encryption analysis</h2>
-          <div class="console" id="decryptConsole">
-            <span class="out">DECRYPT ENGINE READY</span><br><br>
-            Upload encrypted evidence files to analyze encryption methods, estimate recovery feasibility, and extract recoverable metadata.<br><br>
-            Supported: encrypted ZIP, password-protected PDF, BitLocker images, LUKS containers.
-          </div>
-          <div style="margin-top:12px">
-            <label class="field-label">TARGET CASE</label>
-            <select id="decryptCase" class="field"></select>
-          </div>
-          <div class="toolbar">
-            <button class="btn primary" id="decryptBtn" onclick="runDecryptAnalysis()">Run Entropy Analysis</button>
-          </div>
-          <div id="decryptStatus" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
-        </div>
-        <div class="card">
-          <h2>Evidence encryption inventory</h2>
-          <div id="decryptResults" style="color:var(--muted);font-size:11px">Select a case and run analysis to view encryption details.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── THREAT HUNT ─── -->
-    <section id="hunt" class="view">
-      <h1>Threat Hunt Console</h1>
-      <p class="lead">Search across endpoint, network, and identity telemetry using structured hypotheses.</p>
-      <div class="card">
-        <h2>Hunt query</h2>
-        <div class="inputrow">
-          <input id="huntInput" value="process: powershell AND outbound_connection: true" />
-          <button class="btn primary" onclick="runHunt()">Execute</button>
-        </div>
-        <div class="console" id="huntResult" style="margin-top:15px">Ready. Select a query and execute the hunt across indexed telemetry.</div>
-      </div>
-    </section>
-
-    <!-- ─── USER PROFILE ─── -->
-    <section id="profile" class="view">
-      <h1>My Profile</h1>
-      <p class="lead">Manage your account settings, password, and timezone preferences.</p>
-      <div class="grid two">
-        <div class="card">
-          <h2>Account Information</h2>
-          <div id="profileInfo" style="font-size:12px;color:var(--muted)">Loading…</div>
-          <div style="margin-top:16px">
-            <label class="field-label">FULL NAME</label>
-            <input id="profileName" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:10px;font:12px inherit;border-radius:2px" />
-          </div>
-          <div style="margin-top:12px">
-            <label class="field-label">TIMEZONE</label>
-            <select id="profileTz" class="field"></select>
-          </div>
-          <div class="toolbar"><button class="btn primary" onclick="saveProfile()">Save Profile</button></div>
-        </div>
-        <div class="card">
-          <h2>Change Passphrase</h2>
-          <div style="margin-bottom:12px"><label class="field-label">CURRENT PASSPHRASE</label><input id="profileCurPass" type="password" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:10px;font:12px inherit;border-radius:2px" /></div>
-          <div style="margin-bottom:12px"><label class="field-label">NEW PASSPHRASE</label><input id="profileNewPass" type="password" style="width:100%;background:#07101b;color:var(--cyan);border:1px solid #29425f;padding:10px;font:12px inherit;border-radius:2px" /></div>
-          <div id="profileMsg" style="font-size:11px;margin-top:8px"></div>
-          <div class="toolbar"><button class="btn primary" onclick="changePassword()">Update Passphrase</button></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── AUDIT TRAIL ─── -->
-    <section id="audit" class="view">
-      <h1>Audit Trail</h1>
-      <p class="lead">Chain-of-custody records and forensic accountability logs for the active case.</p>
-      <div class="toolbar">
-        <select id="auditCase" class="field" style="width:auto;display:inline-block"></select>
-        <button class="btn" onclick="loadAuditLog()">↻ Refresh</button>
-      </div>
-      <div class="grid two">
-        <div class="card">
-          <h2>Chain of Custody</h2>
-          <div id="custodyLog" style="font-size:11px;color:var(--muted)">Select a case to view custody records.</div>
-        </div>
-        <div class="card">
-          <h2>Audit Log</h2>
-          <div id="auditLog" style="font-size:11px;color:var(--muted)">Select a case to view audit records.</div>
-        </div>
-      </div>
-    </section>
-  
-    <!-- ─── MODEL EVALUATION ─── -->
-    <section id="modelEval" class="view">
-      <h1>Model Evaluation Metrics</h1>
-      <p class="lead">Evaluate AI model performance against labeled forensic benchmark data. Compute confusion matrix, precision, recall, F1, and ROC-AUC.</p>
-      <div class="toolbar">
-        <button class="btn primary" id="evalAnomalyBtn" onclick="runEvaluation('anomaly_detector')">Evaluate Anomaly Detector</button>
-        <button class="btn" id="evalNlpBtn" onclick="runEvaluation('nlp_extractor')">Evaluate NLP Extractor</button>
-        <button class="btn" onclick="loadEvaluationRuns()">↻ Refresh History</button>
-      </div>
-      <div id="evalStatus" style="font-size:11px;color:var(--muted);margin-bottom:12px"></div>
-
-      <!-- Metrics Cards -->
-      <div class="grid four" id="evalMetrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
-        <div class="card"><div class="metric">ACCURACY</div><div class="value" id="evalAccuracy" style="color:var(--blue)">—</div></div>
-        <div class="card"><div class="metric">PRECISION</div><div class="value" id="evalPrecision" style="color:var(--cyan)">—</div></div>
-        <div class="card"><div class="metric">RECALL</div><div class="value" id="evalRecall" style="color:var(--green)">—</div></div>
-        <div class="card"><div class="metric">F1 SCORE</div><div class="value" id="evalF1" style="color:var(--amber)">—</div></div>
-      </div>
-
-      <div class="grid two" style="margin-bottom:16px">
-        <!-- Confusion Matrix -->
-        <div class="card">
-          <h2>Confusion Matrix</h2>
-          <div id="confusionMatrix" style="font-size:11px;color:var(--muted)">Run evaluation to generate confusion matrix</div>
-        </div>
-        <!-- ROC-AUC & Performance -->
-        <div class="card">
-          <h2>ROC-AUC & Performance</h2>
-          <div id="rocPerf" style="font-size:11px;color:var(--muted)">Run evaluation to view ROC-AUC and resource usage</div>
-        </div>
-      </div>
-
-      <!-- Evaluation History -->
-      <div class="card">
-        <h2>Evaluation History</h2>
-        <table class="table"><thead><tr><th>MODEL</th><th>DATE</th><th>DATASET</th><th>STATUS</th><th>F1</th><th>ROC-AUC</th></tr></thead>
-        <tbody id="evalHistoryTable"><tr><td colspan="6" style="color:var(--muted)">No evaluation runs yet</td></tr></tbody></table>
-      </div>
-    </section>
-
-    <!-- SUSPICIOUS EVENTS -->
-    <section id="suspicious" class="view">
-      <h1>Suspicious Events</h1>
-      <p class="lead">Filter and review all suspicious timeline events with severity, source, and why-flagged drill-down.</p>
-      <div class="toolbar">
-        <button class="btn" onclick="loadSuspiciousEvents()">↻ Refresh</button>
-        <button class="btn" onclick="exportSuspiciousCSV()">Export CSV</button>
-      </div>
-      <div id="suspiciousSummary" style="font-size:12px;color:var(--muted);margin-bottom:12px">Select a case to view suspicious events.</div>
-      <div class="card">
-        <table class="table"><thead><tr><th>SEVERITY</th><th>EVENT</th><th>TIMESTAMP</th><th>SOURCE</th><th>CONFIDENCE</th><th>WHY FLAGGED</th></tr></thead>
-        <tbody id="suspiciousTable"><tr><td colspan="6" style="color:var(--muted)">Select a case and run analysis to view suspicious events.</td></tr></tbody></table>
-      </div>
-    </section>
-
-    <!-- PROCESSING STATUS -->
-    <section id="processing" class="view">
-      <h1>Processing Status</h1>
-      <p class="lead">Monitor forensic job pipeline: upload → hashing → preprocessing → artifact extraction → anomaly detection → correlation → timeline → report.</p>
-      <div class="toolbar">
-        <button class="btn" onclick="loadProcessingJobs()">↻ Refresh</button>
-      </div>
-      <div class="grid four" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
-        <div class="card"><div class="metric">QUEUED</div><div class="value" id="psQueued" style="color:var(--amber)">0</div></div>
-        <div class="card"><div class="metric">PROCESSING</div><div class="value" id="psProcessing" style="color:var(--cyan)">0</div></div>
-        <div class="card"><div class="metric">COMPLETED</div><div class="value" id="psCompleted" style="color:var(--green)">0</div></div>
-        <div class="card"><div class="metric">FAILED</div><div class="value" id="psFailed" style="color:var(--red)">0</div></div>
-      </div>
-      <div id="processingPipeline"></div>
-      <div class="card">
-        <h2>Job History</h2>
-        <table class="table"><thead><tr><th>JOB ID</th><th>TYPE</th><th>STATUS</th><th>STAGE</th><th>PROGRESS</th><th>CREATED</th><th>ACTIONS</th></tr></thead>
-        <tbody id="processingTable"><tr><td colspan="7" style="color:var(--muted)">Select a case to view jobs.</td></tr></tbody></table>
-      </div>
-    </section>
-</main>
-</div>
-
-<!-- Toast Container -->
-<div id="toastContainer"></div>
-<!-- Legacy single toast (kept for compatibility) -->
-<div id="toast"></div>
-
-<script>
-/* ═══════════════════════════════════════════════════════════════
-   T.A.C.T.I.C. — Frontend Application Layer
-   Wires the new UI to the existing FastAPI backend.
-   ═══════════════════════════════════════════════════════════════ */
-
-// ── State ──
-const S = {
-  token: localStorage.getItem('tactic_token'),
-  refreshToken: localStorage.getItem('tactic_refresh'),
-  user: null,
-  cases: [],
-  activeCaseId: null,
-  evidence: [],
-  findings: [],
-  timelineEvents: [],
-  graphNodes: [],
-  graphEdges: [],
-  reports: [],
-  users: [],
-  health: null,
-  suspiciousOnly: false,
-};
-
-// ── Token refresh helper ──
-async function tryRefreshToken() {
-  if (!S.refreshToken) return false;
-  try {
-    const res = await fetch('/api/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: S.refreshToken })
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    S.token = data.access_token;
-    S.refreshToken = data.refresh_token;
-    localStorage.setItem('tactic_token', S.token);
-    localStorage.setItem('tactic_refresh', S.refreshToken);
-    return true;
-  } catch { return false; }
-}
-
-// ── API Helper ──
-async function api(method, path, body, isForm) {
-  const opts = { method, headers: {} };
-  if (S.token) opts.headers['Authorization'] = 'Bearer ' + S.token;
-  if (body && !isForm) {
-    opts.headers['Content-Type'] = 'application/json';
-    opts.body = JSON.stringify(body);
-  }
-  if (isForm) opts.body = body;
-  let res = await fetch(path, opts);
-  // Auto-refresh on 401 (token expired)
-  if (res.status === 401 && S.refreshToken) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      opts.headers['Authorization'] = 'Bearer ' + S.token;
-      res = await fetch(path, opts);
-    }
-  }
-  if (!res.ok) {
-    let detail = '';
-    try { const j = await res.json(); detail = j.detail || JSON.stringify(j); } catch { detail = res.statusText; }
-    throw { status: res.status, detail };
-  }
-  if (res.status === 204) return null;
-  return res.json();
-}
-
-// ── Friendly error messages ──
-function friendlyError(e) {
-  if (!e) return 'An unknown error occurred.';
-  var s = e.status;
-  var d = (typeof e.detail === 'string' && e.detail) ? e.detail : '';
-  // Network / fetch errors
-  if (e instanceof TypeError && e.message === 'Failed to fetch')
-    return 'Unable to reach the server. Check your internet connection and try again.';
-  if (s === 0 || !s) return d || 'Unable to reach the server. The backend may be offline.';
-  // HTTP status-based messages
-  if (s === 400) return d || 'The request was invalid. Please check your input and try again.';
-  if (s === 401) return 'Your session has expired. Please sign in again.';
-  if (s === 403) return d || 'You do not have permission to perform this action.';
-  if (s === 404) return d || 'The requested resource was not found.';
-  if (s === 413) return 'The file is too large. Please upload a smaller file.';
-  if (s === 415) return 'This file type is not supported. Please upload a different format.';
-  if (s === 422) return d || 'The data provided is invalid. Please check all fields.';
-  if (s === 429) return 'Too many requests. Please wait a moment and try again.';
-  if (s >= 500) return d || 'A server error occurred. Please try again later. (HTTP ' + s + ')';
-  return d || 'Request failed. (HTTP ' + s + ')';
-}
-
-function friendlyUploadError(e) {
-  if (!e) return 'Upload failed for an unknown reason.';
-  var s = e.status;
-  var d = '';
-  if (typeof e.detail === 'string' && e.detail) {
-    d = e.detail;
-  } else if (typeof e.detail === 'object' && e.detail) {
-    d = e.detail.message || JSON.stringify(e.detail);
-  }
-  if (e instanceof TypeError && e.message === 'Failed to fetch')
-    return 'Upload interrupted — check your connection and try again.';
-  if (s === 413) return 'This file exceeds the maximum upload size. Try compressing it or uploading a smaller file.';
-  if (s === 415) return 'This file type is not accepted. Accepted formats include disk images, memory dumps, event logs, PCAP, archives, documents, and hash lists.';
-  if (s === 422) return d || 'Upload rejected — the file may be corrupted or the case is locked.';
-  if (s === 429) return 'Upload rate limit reached. Please wait a moment before trying again.';
-  if (s >= 500) return 'Server error during upload. Please try again later.';
-  return d || friendlyError(e);
-}
-
-function friendlyAnalysisError(e) {
-  if (!e) return 'Analysis failed for an unknown reason.';
-  var s = e.status;
-  var d = (typeof e.detail === 'string' && e.detail) ? e.detail : '';
-  if (e instanceof TypeError && e.message === 'Failed to fetch')
-    return 'Analysis request failed — the server may be busy processing. Please try again in a moment.';
-  if (s === 422) return d || 'Analysis could not run — the case may have no evidence to analyze.';
-  if (s === 429) return 'Too many analysis requests in a short time. Please wait before retrying.';
-  if (s >= 500) return 'The analysis engine encountered an error. This can happen with very large evidence sets — try analyzing fewer files at once.';
-  return d || friendlyError(e);
-}
-
-// ── Auth ──
-async function doLogin() {
-  const u = document.getElementById('loginUser').value.trim();
-  const p = document.getElementById('loginPass').value;
-  if (!u || !p) return showLoginErr('Enter username and passphrase.');
-  try {
-    const data = await api('POST', '/api/auth/login', { username: u, password: p });
-    S.token = data.access_token;
-    S.refreshToken = data.refresh_token;
-    localStorage.setItem('tactic_token', S.token);
-    localStorage.setItem('tactic_refresh', S.refreshToken);
-    await loadUser();
-    enterApp();
-  } catch (e) {
-    var loginMsg = friendlyError(e);
-    if (e.status === 401) loginMsg = 'Invalid username or passphrase. Please check your credentials and try again.';
-    else if (e.status === 429) loginMsg = 'Too many login attempts. Please wait a moment before trying again.';
-    else if (e instanceof TypeError && e.message === 'Failed to fetch') loginMsg = 'Could not connect to the server. Please check your network connection.';
-    showLoginErr(loginMsg);
-  }
-}
-
-async function doRegister() {
-  const u = document.getElementById('regUser').value.trim();
-  const n = document.getElementById('regName').value.trim();
-  const p = document.getElementById('regPass').value;
-  if (!u || !n || !p) return showRegErr('All fields required.');
-  try {
-    await api('POST', '/api/auth/register', { username: u, full_name: n, password: p, role: 'investigator' });
-    showLogin();
-    document.getElementById('loginUser').value = u;
-    showRegErr('');
-    document.getElementById('regErr').style.display = 'none';
-    notify('Registration successful. Sign in now.');
-  } catch (e) {
-    var regMsg = friendlyError(e);
-    if (e.status === 409) regMsg = 'A user with that username already exists. Please choose a different username.';
-    else if (e.status === 422) regMsg = (typeof e.detail === 'string' && e.detail) || 'Registration rejected — username or password does not meet requirements.';
-    showRegErr(regMsg);
-  }
-}
-
-function doLogout() {
-  S.token = null;
-  S.refreshToken = null;
-  S.user = null;
-  localStorage.removeItem('tactic_token');
-  localStorage.removeItem('tactic_refresh');
-  document.getElementById('appShell').style.display = 'none';
-  document.getElementById('loginScreen').style.display = '';
-  document.getElementById('loginForm').style.display = '';
-  document.getElementById('registerForm').style.display = 'none';
-}
-
-async function loadUser() {
-  try { S.user = await api('GET', '/api/users/me'); } catch { S.user = null; }
-}
-
-function showLogin() {
-  document.getElementById('loginForm').style.display = '';
-  document.getElementById('registerForm').style.display = 'none';
-}
-function showRegister() {
-  document.getElementById('loginForm').style.display = 'none';
-  document.getElementById('registerForm').style.display = '';
-}
-function showLoginErr(m) {
-  const el = document.getElementById('loginErr');
-  el.textContent = m; el.style.display = m ? '' : 'none';
-}
-function showRegErr(m) {
-  const el = document.getElementById('regErr');
-  el.textContent = m; el.style.display = m ? '' : 'none';
-}
-
-// ── Enter App ──
-async function enterApp() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('registerForm').style.display = 'none';
-  document.getElementById('appShell').style.display = '';
-  if (S.user) {
-    document.getElementById('userPill').textContent = (S.user.role === 'admin' ? 'ADMIN' : 'ANALYST') + ' // ' + (S.user.full_name || S.user.username);
-  }
-  await loadCases();
-}
-
-// ── Navigation ──
-const viewNames = {
-  dashboard:'CASE DASHBOARD',cases:'CASE MANAGEMENT',intake:'EVIDENCE INTAKE',evidence:'EVIDENCE DETAILS',
-  analysis:'FORENSIC ANALYSIS HUB',iocs:'IOC MANAGEMENT',graph:'EVIDENCE RELATIONSHIP GRAPH',
-  timeline:'INVESTIGATION TIMELINE',assistant:'AI ASSISTANT',report:'REPORT GENERATOR',
-  access:'USERS & ROLES',profile:'MY PROFILE',audit:'AUDIT TRAIL',decrypt:'DECRYPT ENGINE',hunt:'TELEMETRY HUNT',modelEval:'MODEL MANAGEMENT',artifactTable:'ARTIFACT TABLE',suspicious:'SUSPICIOUS EVENTS',processing:'PROCESSING STATUS'
-};
-function showView(id) {
-  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === id));
-  document.querySelectorAll('.nav').forEach(b => b.classList.toggle('active', b.dataset.view === id));
-  document.getElementById('location').textContent = viewNames[id] || id.toUpperCase();
-  // Load data for the view
-  if (id === 'dashboard') loadDashboard();
-  if (id === 'cases') loadCases();
-  if (id === 'intake') populateIntakeCases();
-  if (id === 'evidence') loadEvidenceDetails();
-  if (id === 'analysis') loadAnalysisResults();
-  if (id === 'graph') loadCorrelation();
-  if (id === 'timeline') loadTimeline();
-  if (id === 'iocs') loadIOCs();
-  if (id === 'report') loadReports();
-  if (id === 'access') loadAdminData();
-  if (id === 'profile') loadProfile();
-  if (id === 'audit') { populateAuditCases(); loadAuditLog(); }
-  if (id === 'decrypt') populateDecryptCases();
-  if (id === 'hunt') loadHuntResults();
-  if (id === 'modelEval') loadEvaluationRuns();
-  if (id === 'suspicious') loadSuspiciousEvents();
-  if (id === 'processing') loadProcessingJobs();
-  if (id === 'artifactTable') { loadArtifactDropdowns(); loadFilteredArtifacts(); }
-}
-document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { showView(b.dataset.view); closeMobileMenu(); });
-
-// ── Mobile Menu ──
-function toggleMobileMenu() {
-  var sb = document.querySelector('.sidebar');
-  var ov = document.querySelector('.sidebar-overlay');
-  sb.classList.toggle('open');
-  ov.classList.toggle('open');
-}
-function closeMobileMenu() {
-  var sb = document.querySelector('.sidebar');
-  var ov = document.querySelector('.sidebar-overlay');
-  if (sb) sb.classList.remove('open');
-  if (ov) ov.classList.remove('open');
-}
-
-// ── Case Management ──
-async function loadCases() {
-  document.getElementById('casesTable').innerHTML = skelTable(6, 5);
-  try {
-    const res = await api('GET', '/api/cases');
-    S.cases = res.items || res;
-    renderCases();
-    populateCaseSelect();
-  } catch (e) {
-    if (e.status === 401) doLogout();
-    else notifyError('Could not load cases: ' + friendlyError(e));
-  }
-}
-
-S.casePage = 1;
-function renderCases(page) {
-  page = page || S.casePage || 1;
-  S.casePage = page;
-  const tb = document.getElementById('casesTable');
-  if (!S.cases.length) { tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No cases registered</td></tr>'; return; }
-  const PAGE_SIZE = 15;
-  const paged = paginate(S.cases, PAGE_SIZE, page);
-  tb.innerHTML = paged.map(c => `<tr>
-    <td style="color:var(--cyan);font-weight:600">${esc(c.case_number)}</td>
-    <td>${esc(c.name)}</td>
-    <td style="color:var(--muted)">${esc(c.incident_date || '—')}</td>
-    <td><span class="tag ${c.status==='closed'?'':c.status==='active'?'green':''}">${esc(c.status.toUpperCase())}</span></td>
-    <td style="white-space:nowrap">
-      <a style="color:var(--cyan);cursor:pointer;font-weight:700;margin-right:12px" onclick="selectCase(${c.id})">INVESTIGATE</a>
-      <a style="color:#ff6077;cursor:pointer;font-weight:700;font-size:10px" onclick="deleteCase(${c.id}, '${esc(c.case_number)}')">DELETE</a>
-    </td>
-  </tr>`).join('') + renderPagination(S.cases.length, PAGE_SIZE, page, 'renderCases');
-}
-
-function populateCaseSelect() {
-  const sel = document.getElementById('caseSelect');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">SELECT INVESTIGATION…</option>' +
-    S.cases.map(c => `<option value="${c.id}">[${esc(c.case_number)}] ${esc(c.name.toUpperCase())}</option>`).join('');
-  if (cur) sel.value = cur;
-}
-
-function updateIntakeBtnState() {
-  const sel = document.getElementById('intakeCase');
-  const fileInput = document.getElementById('intakeFile');
-  const btn = document.getElementById('uploadBtn');
-  const count = fileInput && fileInput.files ? fileInput.files.length : 0;
-  btn.disabled = !sel.value || !count;
-  btn.textContent = count > 1 ? `Upload ${count} Files` : 'Upload Evidence';
-}
-
-function populateIntakeCases() {
-  const sel = document.getElementById('intakeCase');
-  sel.innerHTML = '<option value="">SELECT TARGET…</option>' +
-    S.cases.map(c => `<option value="${c.id}">[${esc(c.case_number)}] ${esc(c.name)}</option>`).join('');
-  if (S.activeCaseId) sel.value = S.activeCaseId;
-  sel.onchange = updateIntakeBtnState;
-  document.getElementById('intakeFile').onchange = updateIntakeBtnState;
-  updateIntakeBtnState();
-}
-
-function selectCase(id) {
-  S.activeCaseId = id;
-  document.getElementById('caseSelect').value = id;
-  onCaseChange(id);
-  showView('dashboard');
-}
-
-function onCaseChange(id) {
-  S.activeCaseId = id ? Number(id) : null;
-  const c = S.cases.find(x => x.id === S.activeCaseId);
-  document.getElementById('caseMeta').textContent = c ? `${c.case_number} · ${c.status.toUpperCase()}` : 'No active case pinned';
-  loadDashboard();
-  loadIntakeRecent();
-  // Refresh artifact dropdowns if the artifact table view is active
-  if (document.getElementById('artifactTable') && document.getElementById('artifactTable').classList.contains('active')) {
-    loadArtifactDropdowns();
-    loadFilteredArtifacts();
-  }
-}
-
-function toggleCreateCase() {
-  const el = document.getElementById('createCaseForm');
-  el.style.display = el.style.display === 'none' ? '' : 'none';
-}
-
-async function deleteCase(id, caseNum) {
-  if (!window.confirm(`Permanently delete case "${caseNum}"? This removes all associated evidence, timeline, and findings.`)) return;
-  try {
-    await api('DELETE', `/api/cases/${id}`);
-    notify('Case ' + caseNum + ' deleted successfully.');
-    if (S.activeCaseId === id) { S.activeCaseId = null; document.getElementById('caseMeta').textContent = 'No active case pinned'; }
-    await loadCases();
-  } catch (e) {
-    var delMsg = friendlyError(e);
-    if (e.status === 403) delMsg = 'You do not have permission to delete this case. Only administrators can delete cases.';
-    else if (e.status === 404) delMsg = 'Case not found. It may have already been deleted.';
-    notifyError('Delete failed: ' + delMsg);
-  }
-}
-
-async function createCase() {
-  const num = document.getElementById('newCaseNum').value.trim();
-  const name = document.getElementById('newCaseName').value.trim();
-  const date = document.getElementById('newCaseDate').value;
-  const desc = document.getElementById('newCaseDesc').value.trim();
-  if (!num || !name || !date || !desc) return notify('All fields required.');
-  try {
-    await api('POST', '/api/cases', { case_number: num, name, incident_date: date, description: desc });
-    notify('Case created successfully.');
-    document.getElementById('createCaseForm').style.display = 'none';
-    ['newCaseNum','newCaseName','newCaseDate','newCaseDesc'].forEach(id => document.getElementById(id).value = '');
-    await loadCases();
-  } catch (e) { notifyError('Could not create case: ' + friendlyError(e)); }
-}
-
-// ── Dashboard ──
-async function loadDashboard() {
-  const st = document.getElementById('dashStats');
-  const c = S.cases.find(x => x.id === S.activeCaseId);
-  // Show skeleton while loading
-  st.innerHTML = skel(4, 'card');
-  document.getElementById('dashEvidence').innerHTML = skelTable(3, 3);
-  let evCount = 0, findCount = 0, repCount = 0;
-  if (S.activeCaseId) {
-    try {
-      const evRes = await api('GET', `/api/evidence?case_id=${S.activeCaseId}`);
-      S.evidence = evRes.items || evRes;
-      evCount = S.evidence.length;
-    } catch (e) { console.warn('Dashboard: could not load evidence count', e); }
-    try {
-      const tl = await api('GET', `/api/timeline/${S.activeCaseId}`);
-      findCount = (tl.events || []).filter(e => e.priority && ['critical','high'].includes(e.priority)).length;
-    } catch (e) { console.warn('Dashboard: could not load findings count', e); }
-    try {
-      const repRes = await api('GET', `/api/report?case_id=${S.activeCaseId}`);
-      S.reports = repRes.items || repRes;
-      repCount = S.reports.length;
-    } catch (e) { console.warn('Dashboard: could not load reports count', e); }
-  }
-  st.innerHTML = [
-    metric('CASES', S.cases.length, 'var(--blue)'),
-    metric('EVIDENCE ITEMS', evCount, 'var(--cyan)'),
-    metric('CRITICAL FINDINGS', findCount, 'var(--red)'),
-    metric('REPORTS', repCount, 'var(--green)')
-  ].join('');
-
-  // Evidence queue
-  const tbody = document.getElementById('dashEvidence');
-  if (S.evidence.length) {
-    tbody.innerHTML = S.evidence.slice(0, 5).map(e => `<tr>
-      <td>${esc(e.filename)}</td>
-      <td style="color:var(--muted)">${esc(e.detected_mime || e.extension || '—')}</td>
-      <td><span class="tag green">INGESTED</span></td>
-    </tr>`).join('');
-  } else {
-    tbody.innerHTML = `<tr><td colspan="3" style="color:var(--muted)">${c ? 'No evidence uploaded yet' : 'Select a case'}</td></tr>`;
-  }
-
-  // Progress
-  const pct = evCount > 0 ? Math.min(100, Math.round(findCount / Math.max(evCount, 1) * 100)) : 0;
-  document.getElementById('dashProgress').style.width = pct + '%';
-  document.getElementById('dashProgressLabel').textContent = pct + '% analysis coverage';
-  const al = document.getElementById('dashAlert');
-  if (findCount > 0) al.innerHTML = `<b class="danger">${findCount}</b> critical or high-severity findings detected. Review in Analysis Hub.`;
-  else if (c) al.innerHTML = 'Run analysis to generate AI findings.';
-  else al.innerHTML = 'Select a case and run analysis to populate findings.';
-}
-
-function metric(label, value, color) {
-  return `<div class="card"><div class="metric">${label}</div><div class="value" style="color:${color}">${value}</div></div>`;
-}
-
-// ── Evidence Upload ──
-async function uploadEvidence() {
-  const caseId = document.getElementById('intakeCase').value;
-  const fileInput = document.getElementById('intakeFile');
-  const files = Array.from(fileInput.files || []);
-  if (!caseId || !files.length) return;
-
-  const btn = document.getElementById('uploadBtn');
-  const prog = document.getElementById('uploadProgress');
-  const bar = document.getElementById('uploadBar');
-  const label = document.getElementById('uploadLabel');
-  const msg = document.getElementById('uploadMsg');
-  const con = document.getElementById('intakeConsole');
-
-  btn.disabled = true;
-  prog.style.display = '';
-  msg.innerHTML = '';
-  bar.style.width = '5%';
-  label.textContent = files.length > 1 ? `Uploading 1 of ${files.length}…` : 'Uploading…';
-
-  let successCount = 0;
-  let failCount = 0;
-  const errors = [];
-
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const pct = Math.round(((i + 0.3) / files.length) * 100);
-    bar.style.width = `${Math.min(95, Math.max(10, pct))}%`;
-    label.textContent = files.length > 1 ? `Uploading (${i + 1}/${files.length}): ${file.name}…` : `Uploading ${file.name}…`;
-
-    const fd = new FormData();
-    fd.append('case_id', caseId);
-    fd.append('file', file);
-
-    try {
-      await api('POST', '/api/evidence/upload', fd, true);
-      successCount++;
-      con.innerHTML += `<br><span class="out">✓ ${esc(file.name)}</span> — ingested and hashed`;
-    } catch (e) {
-      failCount++;
-      const errMsg = friendlyUploadError(e);
-      errors.push(`${file.name}: ${errMsg}`);
-      con.innerHTML += `<br><span style="color:var(--red)">✗ ${esc(file.name)}</span> — ${esc(errMsg)}`;
-    }
-  }
-
-  bar.style.width = '100%';
-  label.textContent = 'Complete';
-  fileInput.value = '';
-  btn.textContent = 'Upload Evidence';
-  loadIntakeRecent();
-
-  if (failCount === 0) {
-    msg.innerHTML = `<span style="color:var(--green)">✓ ${files.length > 1 ? `All ${files.length} files` : 'Evidence'} ingested successfully. SHA-256 hash generated.</span>`;
-  } else if (successCount > 0) {
-    msg.innerHTML = `<span style="color:var(--yellow)">⚠ Ingested ${successCount} of ${files.length} file(s). ${failCount} failed (see console).</span>`;
-  } else {
-    msg.innerHTML = `<span style="color:var(--red)">✗ Failed to upload: ${esc(errors[0] || 'Upload failed.')}</span>`;
-  }
-
-  setTimeout(() => {
-    prog.style.display = 'none';
-  }, 1500);
-  updateIntakeBtnState();
-}
-
-async function loadIntakeRecent() {
-  if (!S.activeCaseId) return;
-  try {
-    const ev = await api('GET', `/api/evidence?case_id=${S.activeCaseId}`);
-    const items = ev.items || ev || [];
-    const tb = document.getElementById('intakeRecent');
-    if (items.length) {
-      tb.innerHTML = items.slice(0, 6).map(e => `<tr>
-        <td>${esc(e.filename)}</td>
-        <td style="color:var(--muted);font-size:10px">${esc((e.sha256||'').substring(0, 16))}…</td>
-      </tr>`).join('');
-    }
-  } catch (e) {
-    // Silent — recent intake is non-critical UI
-  }
-}
-
-// ── Evidence Details ──
-async function loadEvidenceDetails() {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  document.getElementById('evidenceGrid').innerHTML = skel(3, 'card');
-  try {
-    const evRes2 = await api('GET', `/api/evidence?case_id=${S.activeCaseId}`);
-    S.evidence = evRes2.items || evRes2;
-    const grid = document.getElementById('evidenceGrid');
-    if (!S.evidence.length) { grid.innerHTML = '<div class="card"><p style="color:var(--muted)">No evidence in this case.</p></div>'; return; }
-    grid.innerHTML = S.evidence.map(e => `<div class="card">
-      <h2>${esc(e.filename)}</h2>
-      <table class="table"><tbody>
-        <tr><td>SHA-256</td><td style="font-size:10px;word-break:break-all">${esc(e.sha256 || '—')}</td></tr>
-        <tr><td>Size</td><td>${formatBytes(e.file_size)}</td></tr>
-        <tr><td>MIME</td><td>${esc(e.detected_mime || '—')}</td></tr>
-        <tr><td>Extension</td><td>${esc(e.extension || '—')}</td></tr>
-        <tr><td>Integrity</td><td class="up">${esc(e.integrity_status || 'VERIFIED')}</td></tr>
-      </tbody></table>
-    </div>`).join('');
-  } catch (e) { notifyError('Failed to load evidence: ' + friendlyError(e)); }
-}
-
-// ── Analysis ──
-async function runAnalysis() {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  const btn = document.getElementById('runAnalysisBtn');
-  const st = document.getElementById('analysisStatus');
-  btn.disabled = true;
-  st.innerHTML = '<span class="spinner"></span> Running AI analysis pipeline…';
-  try {
-    const res = await api('POST', '/api/analyze', { case_id: S.activeCaseId });
-    st.innerHTML = `<span style="color:var(--green)">✓ Analysis complete.</span>`;
-    await loadAnalysisResults();
-    loadProcessingJobs();
-  } catch (e) {
-    st.innerHTML = `<span style="color:var(--red)">✗ ${esc(friendlyAnalysisError(e))}</span>`;
-  } finally { btn.disabled = false; }
-}
-
-function renderXaiBars(features) {
-  if (!features || !features.length) return '';
-  const colors = ['#ff6077','#ffbc4b','#38d6ff','#4ee2a4','#4f8cff','#a855f7'];
-  return features.slice(0, 6).map((f, i) => {
-    const pct = f.contribution_pct || 0;
-    const color = colors[i % colors.length];
-    return `<div class="xai-bar-wrap">
-      <span class="xai-bar-label" title="${esc(f.readable_label || f.feature)}">${esc(f.readable_label || f.feature)}</span>
-      <div class="xai-bar-track"><div class="xai-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-      <span class="xai-bar-pct">${pct}%</span>
-    </div>`;
-  }).join('');
-}
-
-function renderXaiReasons(reasons) {
-  if (!reasons || !reasons.length) return '';
-  return reasons.map(r => `<div class="xai-reason">${esc(r)}</div>`).join('');
-}
-
-function renderXaiTrace(trace) {
-  if (!trace) return '';
-  return `<div class="xai-trace">
-    <span>Method: ${esc(trace.method || '—')}</span>
-    <span>Score: ${trace.raw_decision_score || '—'}</span>
-    <span>Features: ${trace.features_analyzed || '—'}</span>
-    <span>Trace: ${esc(trace.trace_id || '—')}</span>
-  </div>`;
-}
-
-function toggleXai(id) {
-  const el = document.getElementById('xai-' + id);
-  if (el) el.classList.toggle('open');
-}
-
-async function loadAnalysisResults() {
-  if (!S.activeCaseId) return;
-  try {
-    const tl = await api('GET', `/api/timeline/${S.activeCaseId}`);
-    S.findings = (tl.events || []).filter(e => e.event && e.event.includes('AI Finding'));
-    document.getElementById('aFindings').textContent = S.findings.length;
-    document.getElementById('aEvidence').textContent = S.evidence.length || '—';
-    document.getElementById('aCorrelations').textContent = S.graphEdges.length || '—';
-    const tb = document.getElementById('findingsTable');
-    if (S.findings.length) {
-      tb.innerHTML = S.findings.slice(0, 10).map((f, idx) => {
-        const sev = (f.priority || 'info').toLowerCase();
-        const cls = ['critical','high'].includes(sev) ? 'red' : sev === 'medium' ? 'amber' : '';
-        const det = (f.details && f.details.finding_details) || {};
-        const xai = det.xai_explanation || {};
-        const features = xai.top_contributing_features || [];
-        const reasons = xai.human_readable_reasons || [];
-        const trace = xai.explanation_trace || {};
-        const summary = xai.summary || det.reason || '';
-        const rec = det.recommendation || '';
-        const hasXai = features.length > 0 || reasons.length > 0;
-        const toggleHtml = hasXai ? `<span class="xai-toggle" onclick="toggleXai(${idx})">EXPLAIN ▼</span>` : '';
-        const xaiPanelHtml = hasXai ? `<div class="xai-panel" id="xai-${idx}">
-          ${summary ? `<div style="margin-bottom:8px;color:#bdcce1;font-size:11px"><b style="color:var(--amber)">Summary:</b> ${esc(summary)}</div>` : ''}
-          ${features.length ? `<div style="margin:6px 0 4px;color:var(--cyan);font-size:10px;font-weight:700">FEATURE CONTRIBUTIONS</div>${renderXaiBars(features)}` : ''}
-          ${reasons.length ? `<div style="margin:8px 0 4px;color:var(--cyan);font-size:10px;font-weight:700">WHY FLAGGED</div>${renderXaiReasons(reasons)}` : ''}
-          ${rec ? `<div style="margin:8px 0 4px;color:var(--cyan);font-size:10px;font-weight:700">RECOMMENDATION</div><div style="color:#bdcce1;font-size:11px">${esc(rec)}</div>` : ''}
-          ${renderXaiTrace(trace)}
-        </div>` : '';
-        return `<tr>
-          <td>${esc(f.event.substring(0, 80))} ${toggleHtml}</td>
-          <td><span class="tag ${cls}">${esc(f.priority || 'info').toUpperCase()}</span></td>
-          <td style="color:var(--muted)">${esc(f.artifact_type || '—')}</td>
-          <td>${f.confidence ? (f.confidence * 100).toFixed(0) + '%' : '—'}</td>
-          <td class="hide-tablet" style="color:var(--muted);font-size:10px">${xai.anomaly_score ? 'Score: ' + xai.anomaly_score : '—'}</td>
-        </tr>${xaiPanelHtml}`;
-      }).join('');
-    } else {
-      tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No findings yet. Click Run AI Analysis.</td></tr>';
-    }
-  } catch (e) {
-    notifyWarning('Could not load analysis results: ' + friendlyError(e));
-  }
-}
-
-// ── Correlation Graph ──
-async function loadCorrelation() {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  try {
-    const data = await api('GET', `/api/correlation/${S.activeCaseId}`);
-    S.graphNodes = data.nodes || [];
-    S.graphEdges = data.edges || [];
-    renderGraph();
-  } catch (e) {
-    document.getElementById('graphMap').innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px">No correlation data. Run analysis first.</div>';
-  }
-}
-
-function renderGraph() {
-  const map = document.getElementById('graphMap');
-  const W = map.clientWidth, H = map.clientHeight;
-  if (!S.graphNodes.length) {
-    map.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px">No entities to map.</div>';
-    return;
-  }
-  // Position nodes in a radial layout
-  const cx = W / 2, cy = H / 2;
-  const positions = {};
-  const types = {};
-  S.graphNodes.forEach(n => { types[n.type] = (types[n.type] || 0) + 1; });
-  const typeList = Object.keys(types);
-  const radius = Math.min(W, H) * 0.35;
-  S.graphNodes.forEach((n, i) => {
-    const angle = (2 * Math.PI * i) / S.graphNodes.length - Math.PI / 2;
-    positions[n.id] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
-  });
-
-  // Build SVG for edges
-  let svg = `<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
-  S.graphEdges.forEach(e => {
-    const p1 = positions[e.source], p2 = positions[e.target];
-    if (!p1 || !p2) return;
-    const color = e.strength_category === 'Strong' ? 'var(--cyan)' : e.strength_category === 'Moderate' ? 'var(--amber)' : '#4d6a85';
-    const op = e.strength_category === 'Weak' ? '0.35' : '0.7';
-    svg += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${color}" stroke-opacity="${op}" stroke-width="2"/>`;
-    // Score label at midpoint
-    if (e.score !== undefined) {
-      const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-      svg += `<text x="${mx}" y="${my - 4}" text-anchor="middle" fill="${color}" font-size="9" font-family="monospace" font-weight="bold">${(e.score * 100).toFixed(0)}%</text>`;
-    }
-  });
-  svg += '</svg>';
-
-  // Node elements
-  let nodes = '';
-  const colorMap = { case: 'var(--cyan)', evidence: 'var(--blue)', finding: 'var(--red)', ip: '#a855f7', email: '#ec4899', username: 'var(--amber)', domain: 'var(--green)' };
-  S.graphNodes.forEach(n => {
-    const p = positions[n.id];
-    if (!p) return;
-    const c = colorMap[n.type] || 'var(--muted)';
-    nodes += `<span class="node" style="left:${(p.x / W * 100)}%;top:${(p.y / H * 100)}%;border-color:${c};color:${c};background:rgba(0,0,0,.4)" onclick="inspectNode('${esc(n.id)}')" title="${esc(n.label)}">${esc(n.label.substring(0, 20))}</span>`;
-  });
-
-  map.innerHTML = svg + nodes;
-
-  // Details
-  const det = document.getElementById('graphDetails');
-  det.innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:10px">
-    <span><b>${S.graphNodes.length}</b> nodes</span>
-    <span><b>${S.graphEdges.length}</b> edges</span>
-    ${typeList.map(t => `<span style="color:${colorMap[t] || 'var(--muted)'}">● ${t}</span>`).join('')}
-  </div>`;
-}
-
-function inspectNode(id) {
-  const n = S.graphNodes.find(x => x.id === id);
-  if (!n) return;
-  const links = S.graphEdges.filter(e => e.source === id || e.target === id);
-  const det = document.getElementById('graphDetails');
-  det.innerHTML = `
-    <div style="margin-bottom:8px"><b style="color:var(--cyan)">${esc(n.label)}</b> <span class="tag" style="font-size:9px">${esc(n.type)}</span></div>
-    <div class="metric">ID: ${esc(n.id)}</div>
-    ${links.length ? '<div style="margin-top:8px" class="metric">LINKS:</div>' + links.map(l => {
-      const other = l.source === id ? l.target : l.source;
-      const otherNode = S.graphNodes.find(x => x.id === other);
-      return `<div style="font-size:10px;padding:4px 0;border-bottom:1px solid #1b2b42">
-        → ${esc(otherNode ? otherNode.label : other)} <span class="tag" style="font-size:8px">${esc(l.label || '')}</span>
-        ${l.score !== undefined ? `<span style="color:var(--cyan)">${(l.score * 100).toFixed(0)}%</span>` : ''}
-        ${l.reason ? `<div style="color:var(--muted);font-size:9px;margin-top:2px">${esc(l.reason.substring(0, 120))}</div>` : ''}
-      </div>`;
-    }).join('') : ''}
-  `;
-}
-
-// ── Timeline ──
-async function loadTimeline() {
-  if (!S.activeCaseId) return;
-  document.getElementById('timelineEvents').innerHTML = skel(5, 'block');
-  try {
-    const data = await api('GET', `/api/timeline/${S.activeCaseId}`);
-    S.timelineEvents = data.events || [];
-    renderTimeline();
-  } catch (e) {
-    notifyWarning('Could not load timeline: ' + friendlyError(e));
-  }
-}
-
-S.tlPage = 1;
-function renderTimeline(page) {
-  page = page || S.tlPage || 1;
-  S.tlPage = page;
-  const el = document.getElementById('timelineEvents');
-  let events = S.timelineEvents;
-  if (S.suspiciousOnly) events = events.filter(e => e.is_suspicious);
-  if (!events.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:20px">No timeline events for this case.</div>';
-    return;
-  }
-  const PAGE_SIZE = 20;
-  const paged = paginate(events, PAGE_SIZE, page);
-  el.innerHTML = paged.map(e => {
-    const sev = (e.priority || 'info').toLowerCase();
-    return `<div class="event ${e.is_suspicious ? 'suspicious' : ''}">
-      <time>${esc(e.display_timestamp || e.timestamp || '')}</time>
-      ${sev !== 'info' ? `<span class="priority ${sev}">${esc(sev.toUpperCase())}</span>` : ''}
-      ${e.is_suspicious ? '<span class="tag red" style="margin-left:8px;font-size:8px">ANOMALY</span>' : ''}
-      <p>${esc(e.event)}</p>
-      <div style="font-size:9px;color:var(--muted);margin-top:4px">Source: ${esc(e.evidence_source || '—')}
-      ${e.confidence !== undefined ? ` · Confidence: ${(e.confidence * 100).toFixed(0)}%` : ''}</div>    </div>`;
-  }).join('') + renderPagination(events.length, PAGE_SIZE, page, 'renderTimeline');
-}
-
-
-function toggleSuspicious() {
-  S.suspiciousOnly = !S.suspiciousOnly;
-  const btn = document.getElementById('suspToggle');
-  btn.textContent = S.suspiciousOnly ? 'Show all events' : 'Filter suspicious only';
-  btn.style.borderColor = S.suspiciousOnly ? 'var(--red)' : '';
-  btn.style.color = S.suspiciousOnly ? 'var(--red)' : '';
-  renderTimeline();
-}
-
-// ── IOCs ──
-async function loadIOCs() {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  try {
-    // Use correlation edges as IOC source
-    const data = await api('GET', `/api/correlation/${S.activeCaseId}`);
-    const nodes = data.nodes || [];
-    const edges = data.edges || [];
-    // Filter entity nodes as IOCs
-    const iocs = nodes.filter(n => ['ip', 'email', 'username', 'domain'].includes(n.type));
-    const tb = document.getElementById('iocsTable');
-    if (iocs.length) {
-      tb.innerHTML = iocs.map(n => {
-        const link = edges.find(e => e.source === n.id || e.target === n.id);
-        return `<tr>
-          <td style="color:var(--cyan);font-weight:600">${esc(n.label)}</td>
-          <td><span class="tag">${esc(n.type.toUpperCase())}</span></td>
-          <td>${link ? `<span class="tag ${link.strength_category === 'Strong' ? 'red' : 'amber'}">${esc(link.strength_category || '—')}</span>` : '—'}</td>
-          <td style="color:var(--muted);font-size:10px">${esc((link?.reason || '—').substring(0, 60))}</td>
-        </tr>`;
-      }).join('');
-    } else {
-      tb.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No IOCs extracted. Run analysis first.</td></tr>';
-    }
-  } catch {
-    document.getElementById('iocsTable').innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No correlation data available.</td></tr>';
-  }
-}
-
-// ── Chat ──
-async function sendChat(text) {
-  const input = document.getElementById('chatInput');
-  const q = text || input.value.trim();
-  if (!q) return;
-  if (!S.activeCaseId) return notify('Select a case first.');
-  input.value = '';
-  const chat = document.getElementById('chatMessages');
-  chat.innerHTML += `<div class="bubble user">${esc(q)}</div>`;
-  chat.scrollTop = chat.scrollHeight;
-  chat.innerHTML += `<div class="bubble ai" id="chatLoading"><span class="spinner"></span> AI AGENT IS FORMULATING THREAT EXPLANATIONS…</div>`;
-  chat.scrollTop = chat.scrollHeight;
-
-  try {
-    const res = await api('POST', '/api/chat', { case_id: S.activeCaseId, question: q });
-    document.getElementById('chatLoading').remove();
-    if (res.detected_hashes && res.detected_hashes.length) {
-      const hashBadges = res.detected_hashes.map(h => `<span class="tag ${h.type === 'SHA-256' ? 'green' : 'amber'}">${esc(h.type)} (${h.length} chars)</span>`).join(' ');
-      chat.innerHTML += `<div style="font-size:10px;margin:2px 0 4px;align-self:start;display:flex;gap:6px;align-items:center"><span style="color:var(--cyan);font-weight:600">◈ Auto-detected Signatures:</span> ${hashBadges}</div>`;
-    }
-    chat.innerHTML += `<div class="bubble ai">${esc(res.answer).replace(/\n/g, '<br>')}</div>`;
-    chat.innerHTML += `<div style="font-size:9px;color:var(--muted);align-self:start">Provider: ${esc(res.provider || 'unknown')}</div>`;
-  } catch (e) {
-    document.getElementById('chatLoading').remove();
-    var errMsg = friendlyError(e);
-    var hint = '';
-    if (e.status === 429) hint = '\n\nYou may be sending messages too quickly. Try again in a moment.';
-    else if (e.status >= 500) hint = '\n\nThe AI service may be temporarily unavailable. Try again shortly.';
-    else if (e instanceof TypeError && e.message === 'Failed to fetch') hint = '\n\nCheck your internet connection.';
-    chat.innerHTML += `<div class="bubble error">Sorry, I couldn\u2019t process that request.\n\n${esc(errMsg)}${esc(hint)}</div>`;
-  }
-  chat.scrollTop = chat.scrollHeight;
-}
-
-// ── Reports ──
-async function generateReport(fmt) {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  const st = document.getElementById('reportStatus');
-  st.innerHTML = '<span class="spinner"></span> Generating ' + fmt.toUpperCase() + ' report…';
-  try {
-    const res = await api('POST', '/api/report', { case_id: S.activeCaseId, format: fmt });
-    const safeName = esc(res.filename);
-    const escapedArg = safeName.replace(/'/g, "\\'");
-    st.innerHTML = `<span style="color:var(--green)">✓ Report generated: <b>${safeName}</b></span> &nbsp;&nbsp; ` +
-      (res.format === 'pdf' ? `<a onclick="previewReport(${res.id},'${res.format}','${escapedArg}')" style="color:var(--cyan);cursor:pointer;font-weight:700;text-decoration:underline;margin-right:12px">Preview</a>` : '') +
-      `<a onclick="downloadReport(${res.id},'${escapedArg}')" style="color:var(--green);cursor:pointer;font-weight:700;text-decoration:underline">Download</a>`;
-    await loadReports();
-  } catch (e) {
-    var msg = friendlyError(e);
-    if (e.status >= 500) msg = 'The report engine could not complete. Ensure evidence has been analyzed first, then try again.';
-    st.innerHTML = `<span style="color:var(--red)">✗ ${esc(msg)}</span>`;
-  }
-}
-
-async function loadReports() {
-  if (!S.activeCaseId) return;
-  try {
-    const repRes2 = await api('GET', `/api/report?case_id=${S.activeCaseId}`);
-    S.reports = repRes2.items || repRes2;
-    const tb = document.getElementById('reportsTable');
-    if (S.reports.length) {
-      tb.innerHTML = S.reports.map(r => {
-        const safeName = esc(r.filename);
-        const escapedArg = safeName.replace(/'/g, "\\'");
-        return `<tr>
-          <td>${safeName}</td>
-          <td><span class="tag">${esc((r.format || '').toUpperCase())}</span></td>
-          <td style="color:var(--muted)">${esc(r.generated_at || '—')}</td>
-          <td style="white-space:nowrap">
-            <a onclick="downloadReport(${r.id}, '${escapedArg}')" style="color:var(--cyan);cursor:pointer;font-weight:700;margin-right:12px">DOWNLOAD</a>
-            ${r.format === 'pdf' ? `<a onclick="previewReport(${r.id}, 'pdf', '${escapedArg}')" style="color:var(--green);cursor:pointer;font-weight:700;font-size:10px">PREVIEW</a>` : ''}
-          </td>
-        </tr>`;
-      }).join('');
-    } else {
-      tb.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No reports generated yet</td></tr>';
-    }
-  } catch (e) {
-    notifyWarning('Could not load reports: ' + friendlyError(e));
-  }
-}
-
-// ── Admin / Users ──
-async function loadAdminData() {
-  try {
-    const usrRes = await api('GET', '/api/admin/users');
-    S.users = usrRes.items || usrRes;
-    const tb = document.getElementById('usersTable');
-    tb.innerHTML = S.users.map(u => `<tr>
-      <td style="color:var(--cyan)">${esc(u.username)}</td>
-      <td>${esc(u.full_name || '—')}</td>
-      <td><span class="tag ${u.role === 'admin' ? 'red' : ''}">${esc(u.role.toUpperCase())}</span></td>
-    </tr>`).join('');
-  } catch (e) {
-    document.getElementById('usersTable').innerHTML = '<tr><td colspan="3" style="color:var(--muted)">Could not load user list: ' + esc(friendlyError(e)) + '</td></tr>';
-  }
-  try {
-    S.health = await api('GET', '/api/health');
-    document.getElementById('healthStatus').textContent = S.health.status || 'UNKNOWN';
-    document.getElementById('healthStatus').style.color = S.health.status === 'healthy' ? 'var(--green)' : 'var(--amber)';
-    const pct = S.health.storage?.used_percent || 0;
-    document.getElementById('storageBar').style.width = pct + '%';
-    document.getElementById('storageLabel').textContent = `Storage: ${S.health.storage?.used_mb || 0} MB (${pct}%)`;
-  } catch (e) {
-    document.getElementById('healthStatus').textContent = 'UNREACHABLE';
-    document.getElementById('healthStatus').style.color = 'var(--red)';
-    document.getElementById('storageLabel').textContent = 'Could not check system health';
-  }
-}
-
-// ── Threat Hunt ──
-function runHunt() {
-  const q = document.getElementById('huntInput').value;
-  const con = document.getElementById('huntResult');
-  con.innerHTML = `<span class="cmd">$ hunt ${esc(q)}</span><br><br>`;
-  con.innerHTML += `<span class="out">[+] Searching indexed telemetry…</span><br>`;
-  // Simulate a hunt using timeline data
-  setTimeout(() => {
-    const matches = S.timelineEvents.filter(e => {
-      const text = JSON.stringify(e).toLowerCase();
-      return q.toLowerCase().split(' AND ').every(term => text.includes(term.split(':').pop().trim()));
-    });
-    if (matches.length) {
-      con.innerHTML += `<span class="out">[+] ${matches.length} matching events found</span><br>`;
-      matches.slice(0, 10).forEach(m => {
-        con.innerHTML += `${esc(m.evidence_source || 'UNKNOWN')} · ${esc(m.event.substring(0, 60))} · ${esc(m.display_timestamp || '')}<br>`;
-      });
-    } else {
-      con.innerHTML += `<span class="warn">[~] No exact matches. Showing all suspicious events:</span><br>`;
-      S.timelineEvents.filter(e => e.is_suspicious).slice(0, 5).forEach(m => {
-        con.innerHTML += `${esc(m.evidence_source || 'UNKNOWN')} · ${esc(m.event.substring(0, 60))}<br>`;
-      });
-    }
-    notify('Hunt completed');
-  }, 600);
-}
-
-// ── Audit Trail ──
-function populateAuditCases() {
-  var sel = document.getElementById('auditCase');
-  sel.innerHTML = '<option value="">SELECT CASE…</option>' +
-    S.cases.map(function(c) { return '<option value="' + c.id + '">[' + esc(c.case_number) + '] ' + esc(c.name) + '</option>'; }).join('');
-  if (S.activeCaseId) sel.value = S.activeCaseId;
-}
-
-// ── Decrypt Engine ──
-function populateDecryptCases() {
-  var sel = document.getElementById('decryptCase');
-  sel.innerHTML = '<option value="">SELECT TARGET…</option>' +
-    S.cases.map(function(c) { return '<option value="' + c.id + '">[' + esc(c.case_number) + '] ' + esc(c.name) + '</option>'; }).join('');
-  if (S.activeCaseId) sel.value = S.activeCaseId;
-}
-
-async function runDecryptAnalysis() {
-  var caseId = document.getElementById('decryptCase').value;
-  if (!caseId) return notifyWarning('Select a case first.');
-  var btn = document.getElementById('decryptBtn');
-  var st = document.getElementById('decryptStatus');
-  btn.disabled = true;
-  st.innerHTML = '<span class="spinner"></span> Analyzing evidence encryption patterns…';
-
-  try {
-    var evidenceRaw = await api('GET', '/api/evidence?case_id=' + caseId);
-    var evidence = evidenceRaw.items || evidenceRaw || [];
-    var con = document.getElementById('decryptConsole');
-    var res = document.getElementById('decryptResults');
-
-    if (!evidence.length) {
-      st.innerHTML = '<span style="color:var(--muted)">No evidence files in this case.</span>';
-      btn.disabled = false;
-      return;
-    }
-
-    con.innerHTML = '<span class="out">ANALYSIS COMPLETE — ' + evidence.length + ' evidence files scanned</span><br><br>';
-
-    var encTypes = [];
-    evidence.forEach(function(e) {
-      var ext = (e.extension || '').toLowerCase();
-      var mime = (e.detected_mime || '').toLowerCase();
-      var isEncrypted = false;
-      var method = 'None detected';
-
-      if (mime.includes('zip') && e.extracted_metadata && e.extracted_metadata.archive_encrypted) {
-        isEncrypted = true;
-        method = 'ZIP Encryption (AES-256 / ZipCrypto)';
-      } else if (ext === '.pdf' || mime.includes('pdf')) {
-        isEncrypted = true;
-        method = 'PDF Document (Password Protected)';
-      } else if (ext === '.docx' || ext === '.xlsx') {
-        method = 'Office Open XML (No encryption detected)';
-      } else if (ext === '.evtx') {
-        method = 'Windows Event Log (Unencrypted binary)';
-      } else if (ext === '.exe' || ext === '.dll') {
-        method = 'PE Binary (Packed/Obfuscation analysis pending)';
-      } else if (ext === '.enc' || ext === '.gpg' || ext === '.pgp') {
-        isEncrypted = true;
-        method = 'Container Encryption (GPG/OpenSSL)';
-      }
-
-      var entropy = (3.5 + Math.random() * 2.5).toFixed(2);
-      encTypes.push({ file: e.filename, encrypted: isEncrypted, method: method, entropy: entropy, sha256: (e.sha256 || '').substring(0, 16) });
-
-      con.innerHTML += '<span class="' + (isEncrypted ? 'warn' : 'out') + '">' +
-        (isEncrypted ? '[ENC]' : '[CLR]') + ' ' + esc(e.filename) +
-        ' — ' + method + ' (entropy: ' + entropy + ')</span><br>';
-    });
-
-    var encCount = encTypes.filter(function(e) { return e.encrypted; }).length;
-    con.innerHTML += '<br><span class="out">[+] Summary: ' + encCount + ' encrypted / ' + evidence.length + ' total files</span>';
-
-    res.innerHTML = '<table class="table"><thead><tr><th>FILE</th><th>ENCRYPTED</th><th>METHOD</th><th>ENTROPY</th><th>SHA-256</th></tr></thead><tbody>' +
-      encTypes.map(function(e) {
-        return '<tr><td>' + esc(e.file) + '</td>' +
-          '<td>' + (e.encrypted ? '<span class="tag red">YES</span>' : '<span class="tag green">NO</span>') + '</td>' +
-          '<td style="color:var(--muted);font-size:10px">' + esc(e.method) + '</td>' +
-          '<td>' + esc(e.entropy) + '</td>' +
-          '<td style="font-size:10px;color:var(--muted)">' + esc(e.sha256) + '…</td></tr>';
-      }).join('') +
-      '</tbody></table>';
-
-    st.innerHTML = '<span style="color:var(--green)">✓ Encryption analysis complete.</span>';
-    notify('Decrypt analysis: ' + encCount + ' encrypted files found');
-  } catch (e) {
-    var dMsg = friendlyAnalysisError(e);
-    st.innerHTML = '<span style="color:var(--red)">✗ ' + esc(dMsg) + '</span>';
-    notifyError('Decrypt analysis failed: ' + dMsg);
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-// ── Utilities ──
-function togglePassVisibility(inputId, btn) {
-  const inp = document.getElementById(inputId);
-  const isPassword = inp.type === 'password';
-  inp.type = isPassword ? 'text' : 'password';
-  btn.querySelector('.eye-open').style.display = isPassword ? 'none' : '';
-  btn.querySelector('.eye-closed').style.display = isPassword ? '' : 'none';
-}
-function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
-function formatBytes(b) { if (!b) return '0 B'; const u = ['B','KB','MB','GB']; let i = 0; let v = b; while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; } return v.toFixed(i ? 1 : 0) + ' ' + u[i]; }
-// ── Toast notification system ──
-function showToast(message, type, duration) {
-  type = type || 'success';
-  duration = duration || 3500;
-  const icons = { success: '✓', error: '✗', warning: '⚠', info: 'ℹ' };
-  const container = document.getElementById('toastContainer');
-  const el = document.createElement('div');
-  el.className = 'toast-item ' + type;
-  el.innerHTML = '<span>' + (icons[type] || '•') + '</span><span>' + esc(message) + '</span><span class="toast-close" onclick="this.parentElement.remove()">✕</span>';
-  container.appendChild(el);
-  setTimeout(() => { el.style.animation = 'toastOut .25s ease forwards'; setTimeout(() => el.remove(), 250); }, duration);
-}
-function notify(s) { showToast(s, 'success'); }
-function notifyError(s) { showToast(s, 'error', 5000); }
-function notifyWarning(s) { showToast(s, 'warning', 4000); }
-function notifyInfo(s) { showToast(s, 'info'); }
-
-// ── Skeleton loaders ──
-function skel(count, type) {
-  type = type || 'line';
-  var cls = type === 'card' ? 'sk-card' : type === 'block' ? 'sk-block' : 'sk-line';
-  var html = '';
-  for (var i = 0; i < count; i++) html += '<div class="skeleton ' + cls + '" style="width:' + (60 + Math.random() * 35) + '%"></div>';
-  return html;
-}
-function skelTable(rows, cols) {
-  var html = '';
-  for (var r = 0; r < rows; r++) {
-    html += '<tr>';
-    for (var c = 0; c < cols; c++) html += '<td><div class="skeleton sk-line" style="width:' + (50 + Math.random() * 40) + '%"></div></td>';
-    html += '</tr>';
-  }
-  return html;
-}
-
-// ── Clock ──
-function tick() {
-  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
-}
-tick(); setInterval(tick, 1000);
-
-// ── Login page: fetch live system stats from /api/health ──
-function loadLoginStats() {
-  fetch('/api/health').then(r => r.json()).then(h => {
-    // DB latency (ms)
-    const lat = h.database_status?.latency_ms;
-    document.getElementById('statLatency').textContent = lat != null ? lat.toFixed(2) + 'ms' : '—';
-    // Anomaly detection threshold (%)
-    const thresh = h.ml_anomaly_model_status?.anomaly_threshold;
-    document.getElementById('statThreat').textContent = thresh != null ? (thresh * 100).toFixed(0) + '%' : '—';
-    // App version
-    document.getElementById('statVersion').textContent = h.version ? 'v' + h.version : '—';
-  }).catch(() => {});
-}
-loadLoginStats();
-
-// ── Auto-resume session on page load ──
-// If a token is stored, silently validate it and skip the login screen.
-document.addEventListener('DOMContentLoaded', async function() {
-  if (S.token) {
-    try {
-      await loadUser();
-      if (S.user) {
-        enterApp();
-        return;
-      }
-    } catch (_) {
-      // Token invalid or expired — fall through to login screen
-    }
-    // Token was invalid: clear stale credentials
-    S.token = null;
-    S.refreshToken = null;
-    localStorage.removeItem('tactic_token');
-    localStorage.removeItem('tactic_refresh');
-  }
-  // Show login screen (default)
-});
-
-
-// ══════════════════════════════════════════════
-// NEW FEATURES
-// ══════════════════════════════════════════════
-
-// ── Dark/Light Theme Toggle ──
-function toggleTheme() {
-  var btn = document.getElementById('themeToggle');
-  var isDark = document.body.classList.toggle('light-theme');
-  btn.textContent = isDark ? '☾ DARK' : '☀ LIGHT';
-  localStorage.setItem('tactic_theme', isDark ? 'light' : 'dark');
-}
-(function initTheme() {
-  if (localStorage.getItem('tactic_theme') === 'light') {
-    document.body.classList.add('light-theme');
-    var btn = document.getElementById('themeToggle');
-    if (btn) btn.textContent = '☾ DARK';
-  }
-})();
-
-// ── Global Search ──
-function globalSearch(query) {
-  var box = document.getElementById('searchResults');
-  if (!query || query.length < 2) { box.style.display = 'none'; return; }
-  var q = query.toLowerCase();
-  var results = [];
-  S.cases.forEach(function(c) {
-    if ((c.name + ' ' + c.case_number + ' ' + c.description).toLowerCase().includes(q))
-      results.push({type:'Case', label:c.case_number + ' — ' + c.name, action:'selectCase(' + c.id + ')'});
-  });
-  S.evidence.forEach(function(e) {
-    if ((e.filename + ' ' + (e.sha256||'')).toLowerCase().includes(q))
-      results.push({type:'Evidence', label:e.filename, action:"showView('evidence')"});
-  });
-  S.findings.forEach(function(f) {
-    if ((f.event || '').toLowerCase().includes(q))
-      results.push({type:'Finding', label:f.event.substring(0, 60), action:"showView('analysis')"});
-  });
-  if (!results.length) { box.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:11px">No results</div>'; box.style.display = 'block'; return; }
-  box.innerHTML = results.slice(0, 8).map(function(r) {
-    return '<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #1b2b42;font-size:11px" onclick="' + r.action + ';document.getElementById(\"searchResults\").style.display=\"none\";document.getElementById(\"globalSearch\").value=\"\"" onmouseover="this.style.background=\"#11243a\"" onmouseout="this.style.background=\"\""><span class="tag" style="font-size:8px;margin-right:6px">' + r.type + '</span>' + esc(r.label) + '</div>';
-  }).join('');
-  box.style.display = 'block';
-}
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('#globalSearch') && !e.target.closest('#searchResults'))
-    document.getElementById('searchResults').style.display = 'none';
-});
-
-// ── User Profile ──
-function loadProfile() {
-  api('GET', '/api/users/me/settings').then(function(d) {
-    document.getElementById('profileInfo').innerHTML =
-      '<div style="display:grid;grid-template-columns:120px 1fr;gap:6px;font:12px inherit">' +
-      '<span style="color:var(--muted)">Username:</span><span style="color:var(--cyan)">' + esc(d.username) + '</span>' +
-      '<span style="color:var(--muted)">Role:</span><span>' + esc(d.role) + '</span>' +
-      '</div>';
-    document.getElementById('profileName').value = d.full_name || '';
-    var sel = document.getElementById('profileTz');
-    var tzs = ['UTC','Asia/Kolkata','America/New_York','America/Chicago','America/Los_Angeles','Europe/London','Europe/Paris','Asia/Tokyo','Australia/Sydney'];
-    sel.innerHTML = tzs.map(function(t) { return '<option value="' + t + '"' + (t === d.timezone ? ' selected' : '') + '>' + t + '</option>'; }).join('');
-  }).catch(function(e) {
-    document.getElementById('profileInfo').innerHTML = '<span style="color:var(--red)">Could not load profile: ' + esc(friendlyError(e)) + '</span>';
-  });
-}
-function saveProfile() {
-  var name = document.getElementById('profileName').value.trim();
-  var tz = document.getElementById('profileTz').value;
-  if (!name) return notifyWarning('Full name is required.');
-  api('PUT', '/api/users/me/settings', { timezone: tz, full_name: name }).then(function() {
-    notify('Profile updated successfully.');
-    if (S.user) S.user.full_name = name;
-    document.getElementById('userPill').textContent = (S.user.role === 'admin' ? 'ADMIN' : 'ANALYST') + ' // ' + name;
-  }).catch(function(e) { notifyError('Failed to update profile: ' + friendlyError(e)); });
-}
-function changePassword() {
-  var cur = document.getElementById('profileCurPass').value;
-  var newP = document.getElementById('profileNewPass').value;
-  var msg = document.getElementById('profileMsg');
-  if (!cur || !newP) { msg.innerHTML = '<span style="color:var(--red)">Both fields required.</span>'; return; }
-  if (newP.length < 6) { msg.innerHTML = '<span style="color:var(--red)">New password must be 6+ characters.</span>'; return; }
-  api('POST', '/api/users/me/change-password', { current_password: cur, new_password: newP }).then(function() {
-    msg.innerHTML = '<span style="color:var(--green)">✓ Password changed successfully.</span>';
-    document.getElementById('profileCurPass').value = '';
-    document.getElementById('profileNewPass').value = '';
-    notify('Passphrase updated.');
-  }).catch(function(e) {
-    var pwMsg = friendlyError(e);
-    if (e.status === 401) pwMsg = 'Current passphrase is incorrect. Please verify it and try again.';
-    else if (e.status === 422) pwMsg = (typeof e.detail === 'string' && e.detail) || 'New passphrase does not meet requirements (minimum 6 characters).';
-    msg.innerHTML = '<span style="color:var(--red)">✗ ' + esc(pwMsg) + '</span>';
-  });
-}
-
-// ── Audit Trail ──
-function loadAuditLog() {
-  var caseId = document.getElementById('auditCase').value;
-  if (!caseId) { notifyWarning('Select a case first.'); return; }
-  Promise.all([
-    api('GET', '/api/forensic-records/cases/' + caseId + '/chain-of-custody'),
-    api('GET', '/api/forensic-records/cases/' + caseId + '/audit-log')
-  ]).then(function(results) {
-    var custody = results[0];
-    var audit = results[1];
-    document.getElementById('custodyLog').innerHTML = custody.length ? custody.map(function(r) {
-      return '<div style="padding:8px 0;border-bottom:1px solid #1b2b42"><span class="tag" style="font-size:9px">' + esc(r.action) + '</span> <span style="color:var(--muted);font-size:10px">' + esc(r.description) + '</span>' + (r.hash_snapshot ? '<br><span style="font-size:9px;color:var(--cyan)">Hash: ' + esc(r.hash_snapshot.substring(0, 20)) + '…</span>' : '') + '</div>';
-    }).join('') : '<div style="color:var(--muted)">No custody records for this case.</div>';
-    document.getElementById('auditLog').innerHTML = audit.length ? audit.map(function(r) {
-      return '<div style="padding:8px 0;border-bottom:1px solid #1b2b42"><span class="tag" style="font-size:9px">' + esc(r.action) + '</span> <span style="color:var(--muted);font-size:10px">' + esc(r.description) + '</span></div>';
-    }).join('') : '<div style="color:var(--muted)">No audit records for this case.</div>';
-  }).catch(function(e) {
-    notifyError('Failed to load audit data: ' + friendlyError(e));
-  });
-}
-
-// ── Export to CSV/JSON ──
-function exportData(type, format) {
-  var data, filename, headers, rows;
-  if (type === 'evidence') {
-    data = S.evidence;
-    filename = 'evidence_export';
-    headers = ['filename','sha256','file_size','detected_mime','extension','integrity_status'];
-    rows = data.map(function(e) { return headers.map(function(h) { return e[h] || ''; }); });
-  } else if (type === 'timeline') {
-    data = S.timelineEvents;
-    filename = 'timeline_export';
-    headers = ['timestamp','event','priority','evidence_source','is_suspicious'];
-    rows = data.map(function(e) { return headers.map(function(h) { return e[h] != null ? String(e[h]) : ''; }); });
-  } else { return; }
-
-  if (!data.length) return notifyWarning('No data to export.');
-
-  if (format === 'json') {
-    var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-    downloadBlob(blob, filename + '.json');
-  } else {
-    var csv = headers.join(',') + '\n' + rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
-    var blob = new Blob([csv], {type:'text/csv'});
-    downloadBlob(blob, filename + '.csv');
-  }
-  notify('Exported ' + data.length + ' records as ' + format.toUpperCase());
-}
-function downloadBlob(blob, name) {
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url; a.download = name; document.body.appendChild(a); a.click();
-  setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-}
-
-// ── Evidence Download (authenticated blob) ──
-async function downloadEvidence(evidenceId, filename) {
-  try {
-    const res = await fetch('/api/evidence/download/' + evidenceId, {
-      headers: { 'Authorization': 'Bearer ' + S.token }
-    });
-    if (!res.ok) { notifyError('Download failed: ' + res.statusText); return; }
-    const blob = await res.blob();
-    downloadBlob(blob, filename || 'evidence_' + evidenceId);
-    notify('Downloaded ' + (filename || 'evidence'));
-  } catch (e) {
-    notifyError('Download failed: ' + (e.message || 'Network error'));
-  }
-}
-
-// ── Report Download (authenticated blob) ──
-async function downloadReport(reportId, filename) {
-  try {
-    const res = await fetch('/api/report/download/' + reportId, {
-      headers: { 'Authorization': 'Bearer ' + S.token }
-    });
-    if (!res.ok) { notifyError('Download failed: ' + res.statusText); return; }
-    const blob = await res.blob();
-    const safeName = filename || ('report_' + reportId);
-    downloadBlob(blob, safeName);
-    notify('Downloaded ' + safeName);
-  } catch (e) {
-    notifyError('Download failed: ' + (e.message || 'Network error'));
-  }
-}
-
-// ── Report Preview (authenticated blob) ──
-async function previewReport(reportId, format, filename) {
-  var box = document.getElementById('reportPreviewBox');
-  var content = document.getElementById('reportPreviewContent');
-  if (!box || !content) return;
-  box.style.display = '';
-  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  content.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted)"><span class="spinner"></span> Loading report document…</div>';
-
-  try {
-    const res = await fetch('/api/report/download/' + reportId + '?inline=true', {
-      headers: { 'Authorization': 'Bearer ' + S.token }
-    });
-    if (!res.ok) {
-      content.innerHTML = '<div style="padding:20px;color:var(--red)">Preview failed: ' + esc(res.statusText || 'Error ' + res.status) + '</div>';
-      return;
-    }
-    const buffer = await res.arrayBuffer();
-    const isPdf = (format || '').toLowerCase() === 'pdf';
-    const mime = isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    const blob = new Blob([buffer], { type: mime });
-    const blobUrl = URL.createObjectURL(blob);
-    const safeFilename = filename || ('report_' + reportId + '.' + (format || 'pdf'));
-    const escapedArg = esc(safeFilename).replace(/'/g, "\\'");
-
-    var headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);border-radius:6px 6px 0 0;font-size:12px">' +
-      '<div><strong style="color:var(--cyan)">' + esc(safeFilename) + '</strong> &nbsp;<span class="tag">' + esc((format || '').toUpperCase()) + '</span></div>' +
-      '<div style="display:flex;gap:8px;align-items:center">' +
-        (isPdf ? '<a class="btn" style="padding:4px 10px;font-size:11px" href="' + blobUrl + '" target="_blank" rel="noopener">Open in New Tab ↗</a>' : '') +
-        '<button class="btn primary" style="padding:4px 10px;font-size:11px" onclick="downloadReport(' + reportId + ', \'' + escapedArg + '\')">Download ⇓</button>' +
-        '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="closeReportPreview()">✕ Close</button>' +
-      '</div>' +
-    '</div>';
-
-    if (isPdf) {
-      content.innerHTML = headerHtml + '<iframe src="' + blobUrl + '#view=FitH" style="width:100%;height:680px;border:none;background:#2d333b;display:block"></iframe>';
-    } else {
-      content.innerHTML = headerHtml + '<div style="padding:40px 20px;text-align:center;background:rgba(255,255,255,0.01)">' +
-        '<p style="font-size:14px;color:var(--text);margin-bottom:14px">Microsoft Word documents (.docx) cannot be previewed directly inside the browser.</p>' +
-        '<button class="btn primary" onclick="downloadReport(' + reportId + ', \'' + escapedArg + '\')">Download ' + esc(safeFilename) + '</button>' +
-      '</div>';
-    }
-  } catch (e) {
-    content.innerHTML = '<div style="padding:20px;color:var(--red)">Preview failed: ' + esc(e.message || 'Network error') + '</div>';
-  }
-}
-
-function closeReportPreview() {
-  var box = document.getElementById('reportPreviewBox');
-  if (box) box.style.display = 'none';
-}
-
-// ── Pagination helper ──
-function paginate(items, pageSize, currentPage) {
-  var start = (currentPage - 1) * pageSize;
-  return items.slice(start, start + pageSize);
-}
-function renderPagination(total, pageSize, currentPage, renderFn) {
-  var pages = Math.ceil(total / pageSize);
-  if (pages <= 1) return '';
-  var html = '<div style="display:flex;gap:6px;justify-content:center;margin-top:12px;font-size:11px">';
-  for (var i = 1; i <= pages; i++) {
-    var isActive = i === currentPage;
-    html += '<button onclick="' + renderFn + '(' + i + ')" class="btn" style="padding:4px 10px;font-size:10px' + (isActive ? ';background:var(--cyan);color:#03121c;border-color:var(--cyan)' : '') + '">' + i + '</button>';
-  }
-  html += '</div>';
-  return html;
-}
-
-// ── Init: token lifecycle managed by doLogin() and doLogout() ──
-// Tokens are NOT cleared on page load — the DOMContentLoaded handler above
-// validates any stored token and auto-resumes the session if still valid.
-
-// ── Model Evaluation ──
-async function runEvaluation(targetModel) {
-  const btn = targetModel === 'anomaly_detector' ? document.getElementById('evalAnomalyBtn') : document.getElementById('evalNlpBtn');
-  const st = document.getElementById('evalStatus');
-  btn.disabled = true;
-  st.innerHTML = '<span class="spinner"></span> Running evaluation on ' + targetModel + '...';
-  try {
-    const res = await api('POST', '/api/evaluation/run', { target_model: targetModel });
-    st.innerHTML = '<span style="color:var(--green)">✓ Evaluation complete — ' + res.model_name + '</span>';
-    displayEvaluationResult(res);
-    await loadEvaluationRuns();
-  } catch (e) {
-    st.innerHTML = '<span style="color:var(--red)">✗ ' + esc(friendlyError(e)) + '</span>';
-  } finally { btn.disabled = false; }
-}
-
-function displayEvaluationResult(run) {
-  const m = run.metrics || {};
-  if (!m.has_ground_truth) {
-    document.getElementById('evalAccuracy').textContent = 'N/A';
-    document.getElementById('evalPrecision').textContent = 'N/A';
-    document.getElementById('evalRecall').textContent = 'N/A';
-    document.getElementById('evalF1').textContent = 'N/A';
-    document.getElementById('confusionMatrix').innerHTML = '<div style="color:var(--amber);padding:12px">' + esc(m.message || 'No ground-truth labels available.') + '</div>';
-    document.getElementById('rocPerf').innerHTML = '<div style="color:var(--muted);padding:12px">Evaluation requires labeled data.</div>';
-    return;
-  }
-  // Metric cards
-  document.getElementById('evalAccuracy').textContent = (m.accuracy * 100).toFixed(1) + '%';
-  document.getElementById('evalPrecision').textContent = (m.precision * 100).toFixed(1) + '%';
-  document.getElementById('evalRecall').textContent = (m.recall * 100).toFixed(1) + '%';
-  document.getElementById('evalF1').textContent = (m.f1_score * 100).toFixed(1) + '%';
-
-  // Confusion matrix visual
-  const cm = m.confusion_matrix || [[0,0],[0,0]];
-  const tn = cm[0][0], fp = cm[0][1], fn = cm[1][0], tp = cm[1][1];
-  const maxVal = Math.max(tn, fp, fn, tp, 1);
-  function cellBg(v) { const intensity = Math.round((v / maxVal) * 60); return intensity; }
-  document.getElementById('confusionMatrix').innerHTML = `
-    <div style="text-align:center;margin-bottom:8px;color:var(--cyan);font-size:10px;font-weight:700">PREDICTED</div>
-    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:2px;max-width:320px;margin:0 auto">
-      <div></div>
-      <div style="text-align:center;color:var(--muted);font-size:10px;padding:4px">Normal</div>
-      <div style="text-align:center;color:var(--muted);font-size:10px;padding:4px">Anomaly</div>
-      <div style="writing-mode:vertical-lr;transform:rotate(180deg);color:var(--muted);font-size:10px;padding:4px;text-align:center">ACTUAL</div>
-      <div style="background:rgba(78,226,164,0.15);border:1px solid #347a5a;padding:16px;text-align:center;border-radius:3px">
-        <div style="font:700 24px 'Space Grotesk';color:var(--green)">${tn}</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:4px">True Negative</div>
-      </div>
-      <div style="background:rgba(255,96,119,0.15);border:1px solid #85404d;padding:16px;text-align:center;border-radius:3px">
-        <div style="font:700 24px 'Space Grotesk';color:var(--red)">${fp}</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:4px">False Positive</div>
-      </div>
-      <div style="background:rgba(255,188,75,0.15);border:1px solid #806434;padding:16px;text-align:center;border-radius:3px">
-        <div style="font:700 24px 'Space Grotesk';color:var(--amber)">${fn}</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:4px">False Negative</div>
-      </div>
-      <div style="background:rgba(56,214,255,0.15);border:1px solid #2d6684;padding:16px;text-align:center;border-radius:3px">
-        <div style="font:700 24px 'Space Grotesk';color:var(--cyan)">${tp}</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:4px">True Positive</div>
-      </div>
-    </div>
-    <div style="margin-top:12px;font-size:10px;color:var(--muted);text-align:center">
-      Precision = ${m.precision} &nbsp;|&nbsp; Recall = ${m.recall} &nbsp;|&nbsp; F1 = ${m.f1_score}
-    </div>`;
-
-  // ROC-AUC & Performance
-  const rocAuc = m.roc_auc || 0;
-  const rocPct = (rocAuc * 100).toFixed(1);
-  document.getElementById('rocPerf').innerHTML = `
-    <div style="margin-bottom:12px">
-      <div style="color:var(--cyan);font-size:10px;font-weight:700;margin-bottom:4px">ROC-AUC SCORE</div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <div style="font:700 32px 'Space Grotesk';color:${rocAuc >= 0.8 ? 'var(--green)' : rocAuc >= 0.6 ? 'var(--amber)' : 'var(--red)'}">${rocPct}%</div>
-        <div style="flex:1;height:12px;background:#1a2b41;border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${rocPct}%;background:linear-gradient(90deg,var(--red),var(--amber),var(--green));border-radius:3px"></div>
-        </div>
-      </div>
-      <div style="font-size:9px;color:var(--muted);margin-top:4px">Trapezoidal integration across 51 threshold steps</div>
-    </div>
-    <div style="border-top:1px solid var(--line);padding-top:10px">
-      <div style="color:var(--cyan);font-size:10px;font-weight:700;margin-bottom:6px">RESOURCE USAGE</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
-        <div><span style="color:var(--muted)">Avg Time:</span> <b>${m.avg_processing_time_ms || '—'} ms/sample</b></div>
-        <div><span style="color:var(--muted)">Total:</span> <b>${m.total_time_seconds || '—'} s</b></div>
-        <div><span style="color:var(--muted)">CPU:</span> <b>${m.cpu_usage_pct || '—'}%</b></div>
-        <div><span style="color:var(--muted)">Memory:</span> <b>${m.memory_rss_mb || '—'} MB</b></div>
-        <div><span style="color:var(--muted)">Throughput:</span> <b>${m.throughput_samples_per_sec || '—'} samples/s</b></div>
-        <div><span style="color:var(--muted)">Dataset:</span> <b>${run.dataset_size || '—'} samples</b></div>
-      </div>
-    </div>`;
-}
-
-async function loadEvaluationRuns() {
-  try {
-    const runs = await api('GET', '/api/evaluation/runs');
-    const tb = document.getElementById('evalHistoryTable');
-    if (!runs || !runs.length) {
-      tb.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">No evaluation runs yet</td></tr>';
-      return;
-    }
-    tb.innerHTML = runs.slice(0, 10).map(r => {
-      const m = r.metrics || {};
-      const status = m.has_ground_truth ? '<span class="tag green">EVALUATED</span>' : '<span class="tag amber">NO LABELS</span>';
-      const date = r.evaluation_date ? new Date(r.evaluation_date).toLocaleDateString() : '—';
-      return `<tr>
-        <td style="color:var(--cyan)">${esc(r.model_name.substring(0, 40))}</td>
-        <td style="color:var(--muted)">${date}</td>
-        <td style="color:var(--muted)">${r.dataset_size || '—'} samples</td>
-        <td>${status}</td>
-        <td>${m.f1_score != null ? m.f1_score : '—'}</td>
-        <td>${m.roc_auc != null ? m.roc_auc : '—'}</td>
-      </tr>`;
-    }).join('');
-  } catch (e) {
-    console.warn('Could not load evaluation runs:', e);
-  }
-}
-
-// ── Human-in-the-Loop: Finding Review ──
-async function loadReviewSummary() {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  const panel = document.getElementById('reviewPanel');
-  panel.style.display = '';
-  
-  try {
-    // Load summary
-    const summary = await api('GET', '/api/analyze/findings/' + S.activeCaseId + '/review-summary');
-    const sumEl = document.getElementById('reviewSummary');
-    const actionsEl = document.getElementById('reviewActions');
-    
-    const pending = summary.pending || 0;
-    const approved = summary.approved || 0;
-    const rejected = summary.rejected || 0;
-    const escalated = summary.escalated || 0;
-    const total = summary.total || 0;
-    
-    sumEl.innerHTML = '<b>' + total + '</b> findings total &mdash; ' +
-      '<span style="color:#ffbc4b">' + pending + ' pending</span> | ' +
-      '<span style="color:#4ee2a4">' + approved + ' approved</span> | ' +
-      '<span style="color:#ff6077">' + rejected + ' rejected</span> | ' +
-      '<span style="color:#a855f7">' + escalated + ' escalated</span>';
-    
-    actionsEl.style.display = pending > 0 ? '' : 'none';
-    
-    // Load findings for review
-    const findings = await api('GET', '/api/analyze/findings/' + S.activeCaseId);
-    const tb = document.getElementById('reviewTable');
-    
-    if (!findings.length) {
-      tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">No findings to review. Run analysis first.</td></tr>';
-      return;
-    }
-    
-    tb.innerHTML = findings.map(f => {
-      const statusColors = {pending:'#ffbc4b', approved:'#4ee2a4', rejected:'#ff6077', escalated:'#a855f7'};
-      const color = statusColors[f.review_status] || '#8ba1bf';
-      const statusLabel = f.review_status.toUpperCase();
-      const reviewer = f.reviewed_by_id ? 'User #' + f.reviewed_by_id : '—';
-      const sev = (f.severity || 'info').toLowerCase();
-      const sevCls = ['critical','high'].includes(sev) ? 'red' : sev === 'medium' ? 'amber' : '';
-      
-      let actions = '';
-      if (f.review_status === 'pending') {
-        actions = '<button class="btn" onclick="reviewFinding(' + f.id + ', &#39;approved&#39;)" style="font-size:10px;padding:4px 8px;border-color:#4ee2a4;color:#4ee2a4">✓ Approve</button> ' +
-          '<button class="btn" onclick="reviewFinding(' + f.id + ', &#39;rejected&#39;)" style="font-size:10px;padding:4px 8px;border-color:#ff6077;color:#ff6077">✗ Reject</button> ' +
-          '<button class="btn" onclick="reviewFinding(' + f.id + ', &#39;escalated&#39;)" style="font-size:10px;padding:4px 8px;border-color:#a855f7;color:#a855f7">⚠ Escalate</button>';
-      } else {
-        actions = '<span style="color:var(--muted);font-size:10px">Reviewed</span>';
-      }
-      
-      return '<tr>' +
-        '<td style="color:var(--cyan)">' + esc(f.title.substring(0, 50)) + '</td>' +
-        '<td><span class="tag ' + sevCls + '">' + esc(f.severity.toUpperCase()) + '</span></td>' +
-        '<td><span style="color:' + color + ';font-weight:700;font-size:11px">' + statusLabel + '</span></td>' +
-        '<td style="color:var(--muted);font-size:10px">' + reviewer + '</td>' +
-        '<td>' + actions + '</td>' +
-        '</tr>';
-    }).join('');
-    
-  } catch (e) {
-    notifyWarning('Could not load review data: ' + friendlyError(e));
-  }
-}
-
-async function reviewFinding(findingId, status) {
-  try {
-    await api('PUT', '/api/analyze/findings/' + findingId + '/review', {
-      review_status: status,
-      review_notes: 'Reviewed via UI'
-    });
-    notify('Finding ' + status + ' successfully.');
-    await loadReviewSummary();
-  } catch (e) {
-    notifyError('Review failed: ' + friendlyError(e));
-  }
-}
-
-async function bulkReview(status) {
-  if (!S.activeCaseId) return;
-  if (!window.confirm('Bulk ' + status + ' all pending findings?')) return;
-  try {
-    await api('POST', '/api/analyze/findings/' + S.activeCaseId + '/bulk-review?review_status=' + status);
-    notify('All pending findings ' + status + '.');
-    await loadReviewSummary();
-  } catch (e) {
-    notifyError('Bulk review failed: ' + friendlyError(e));
-  }
-}
-
-// ── Artifact Table with 12 Filters ──
-let artifactDebounce = null;
-function debounceArtifacts() {
-  clearTimeout(artifactDebounce);
-  artifactDebounce = setTimeout(loadFilteredArtifacts, 400);
-}
-
-async function loadArtifactDropdowns() {
-  if (!S.activeCaseId) return;
-  try {
-    const [types, extractors, evidence] = await Promise.all([
-      api('GET', '/api/artifacts/cases/' + S.activeCaseId + '/types'),
-      api('GET', '/api/artifacts/cases/' + S.activeCaseId + '/extractors'),
-      api('GET', '/api/evidence?case_id=' + S.activeCaseId)
-    ]);
-    const evList = evidence.items || evidence;
-    
-    const typeSel = document.getElementById('fArtType');
-    const curType = typeSel.value;
-    typeSel.innerHTML = '<option value="">All Types</option>' + types.map(t => '<option value="' + t + '"' + (t === curType ? ' selected' : '') + '>' + t + '</option>').join('');
-    
-    const extSel = document.getElementById('fExtractor');
-    const curExt = extSel.value;
-    extSel.innerHTML = '<option value="">All Extractors</option>' + extractors.map(e => '<option value="' + e + '"' + (e === curExt ? ' selected' : '') + '>' + e + '</option>').join('');
-    
-    const srcSel = document.getElementById('fSource');
-    const curSrc = srcSel.value;
-    srcSel.innerHTML = '<option value="">All Sources</option>' + evList.map(e => '<option value="' + e.id + '"' + (String(e.id) === curSrc ? ' selected' : '') + '>' + esc(e.filename) + '</option>').join('');
-  } catch (e) { console.warn('Could not load artifact dropdowns:', e); }
-}
-
-function getArtifactFilters() {
-  const p = new URLSearchParams();
-  const v = (id) => document.getElementById(id).value.trim();
-  if (v('fArtType')) p.set('artifact_type', v('fArtType'));
-  if (v('fExtractor')) p.set('extractor', v('fExtractor'));
-  if (v('fValue')) p.set('value_contains', v('fValue'));
-  if (v('fSource')) p.set('source', v('fSource'));
-  if (v('fMinConf')) p.set('min_confidence', v('fMinConf'));
-  if (v('fMaxConf')) p.set('max_confidence', v('fMaxConf'));
-  if (v('fUsername')) p.set('username', v('fUsername'));
-  if (v('fIpAddr')) p.set('ip_address', v('fIpAddr'));
-  if (v('fSuspicious')) p.set('is_suspicious', v('fSuspicious'));
-  if (v('fDateFrom')) p.set('date_from', v('fDateFrom'));
-  if (v('fDateTo')) p.set('date_to', v('fDateTo'));
-  return p;
-}
-
-let artifactPage = 1;
-async function loadFilteredArtifacts(page) {
-  if (!S.activeCaseId) return;
-  artifactPage = page || 1;
-  const p = getArtifactFilters();
-  p.set('page', artifactPage);
-  p.set('page_size', '30');
-  
-  try {
-    const res = await api('GET', '/api/artifacts/cases/' + S.activeCaseId + '/filtered?' + p.toString());
-    const items = res.items || [];
-    const total = res.total || 0;
-    const tb = document.getElementById('artifactTableBody');
-    const status = document.getElementById('artifactFilterStatus');
-    
-    status.textContent = total + ' artifacts found (page ' + (res.page || 1) + ' of ' + (res.total_pages || 1) + ')';
-    
-    if (!items.length) {
-      tb.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">No artifacts match the current filters.</td></tr>';
-      document.getElementById('artifactPagination').innerHTML = '';
-      return;
-    }
-    
-    tb.innerHTML = items.map(a => {
-      const ts = a.extracted_at ? new Date(a.extracted_at).toLocaleString() : '—';
-      const conf = (a.confidence * 100).toFixed(0) + '%';
-      const confColor = a.confidence >= 0.8 ? 'var(--green)' : a.confidence >= 0.5 ? 'var(--amber)' : 'var(--red)';
-      const ctx = (a.context_snippet || '').substring(0, 60);
-      const src = a.evidence_id ? 'EV-' + a.evidence_id : '—';
-      return '<tr>' +
-        '<td style="color:var(--muted);font-size:10px;white-space:nowrap">' + ts + '</td>' +
-        '<td><span class="tag">' + esc(a.artifact_type) + '</span></td>' +
-        '<td style="color:var(--cyan);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(a.value) + '">' + esc(a.value.substring(0, 50)) + '</td>' +
-        '<td style="color:' + confColor + ';font-weight:700">' + conf + '</td>' +
-        '<td style="color:var(--muted);font-size:10px">' + esc(a.extractor) + '</td>' +
-        '<td style="color:var(--muted);font-size:10px">' + src + '</td>' +
-        '<td style="color:var(--muted);font-size:10px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(ctx) + '">' + esc(ctx) + '</td>' +
-        '</tr>';
-    }).join('');
-    
-    // Pagination
-    const totalPages = res.total_pages || 1;
-    let pagHtml = '';
-    if (totalPages > 1) {
-      for (let i = 1; i <= Math.min(totalPages, 10); i++) {
-        pagHtml += '<button class="btn" onclick="loadFilteredArtifacts(' + i + ')" style="padding:4px 8px;font-size:10px' + (i === artifactPage ? ';background:var(--cyan);color:#03121c' : '') + '">' + i + '</button> ';
-      }
-    }
-    document.getElementById('artifactPagination').innerHTML = pagHtml;
-    
-  } catch (e) {
-    notifyWarning('Could not load artifacts: ' + friendlyError(e));
-  }
-}
-
-function clearArtifactFilters() {
-  ['fArtType','fExtractor','fValue','fSource','fMinConf','fMaxConf','fUsername','fIpAddr','fSuspicious','fDateFrom','fDateTo'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  loadFilteredArtifacts();
-}
-
-function exportArtifactCSV() {
-  const tb = document.getElementById('artifactTableBody');
-  if (!tb || !tb.rows.length) return notify('No data to export.');
-  let csv = 'Timestamp,Type,Value,Confidence,Extractor,Source,Context\n';
-  for (const row of tb.rows) {
-    const cells = Array.from(row.cells).map(c => '"' + c.textContent.replace(/"/g, '""') + '"');
-    csv += cells.join(',') + '\n';
-  }
-  const blob = new Blob([csv], {type: 'text/csv'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'artifacts_export.csv';
-  a.click();
-}
-
-// === SUSPICIOUS EVENTS ===
-async function loadSuspiciousEvents() {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  try {
-    const tl = await api('GET', '/api/timeline/' + S.activeCaseId);
-    const events = (tl.events || []).filter(e => e.is_suspicious);
-    const critCount = events.filter(e => e.priority === 'critical').length;
-    const highCount = events.filter(e => e.priority === 'high').length;
-    const medCount = events.filter(e => e.priority === 'medium').length;
-    document.getElementById('suspiciousSummary').innerHTML =
-      '<b>' + events.length + '</b> suspicious events: ' +
-      '<span style="color:var(--red)">' + critCount + ' critical</span> | ' +
-      '<span style="color:var(--amber)">' + highCount + ' high</span> | ' +
-      '<span style="color:var(--cyan)">' + medCount + ' medium</span>';
-    const tb = document.getElementById('suspiciousTable');
-    if (!events.length) {
-      tb.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">No suspicious events found for this case.</td></tr>';
-      return;
-    }
-    tb.innerHTML = events.map(e => {
-      const sev = (e.priority || 'info').toLowerCase();
-      const cls = sev === 'critical' ? 'red' : sev === 'high' ? 'amber' : '';
-      const ts = e.display_timestamp || e.timestamp || '\u2014';
-      const src = e.evidence_source || '\u2014';
-      const conf = e.confidence ? (e.confidence * 100).toFixed(0) + '%' : '\u2014';
-      const details = e.details || {};
-      let why = e.event || '';
-      if (details.reason) why += ' \u2014 ' + details.reason;
-      if (details.xai_explanation && details.xai_explanation.summary) why = details.xai_explanation.summary;
-      if (details.finding_details && details.finding_details.xai_explanation) why = details.finding_details.xai_explanation.summary || why;
-      if (details.recommendation) why += ' [' + details.recommendation.substring(0, 60) + ']';
-      return '<tr>' +
-        '<td><span class="tag ' + cls + '">' + (e.priority || 'info').toUpperCase() + '</span></td>' +
-        '<td style="color:var(--cyan);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(e.event) + '">' + esc(e.event.substring(0, 60)) + '</td>' +
-        '<td style="color:var(--muted);font-size:10px;white-space:nowrap">' + ts.substring(0, 19).replace('T', ' ') + '</td>' +
-        '<td style="color:var(--muted);font-size:10px">' + esc(src.substring(0, 30)) + '</td>' +
-        '<td style="font-weight:700">' + conf + '</td>' +
-        '<td style="font-size:10px;color:var(--muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(why) + '">' + esc(why.substring(0, 80)) + '</td>' +
-        '</tr>';
-    }).join('');
-  } catch (e) { notifyWarning('Could not load suspicious events: ' + friendlyError(e)); }
-}
-
-function exportSuspiciousCSV() {
-  const tb = document.getElementById('suspiciousTable');
-  if (!tb || !tb.rows.length) return notify('No data to export.');
-  let csv = 'Severity,Event,Timestamp,Source,Confidence,Why Flagged\n';
-  for (const row of tb.rows) {
-    const cells = Array.from(row.cells).map(c => '"' + c.textContent.replace(/"/g, '""') + '"');
-    csv += cells.join(',') + '\n';
-  }
-  const blob = new Blob([csv], {type: 'text/csv'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'suspicious_events.csv';
-  a.click();
-}
-
-// === PROCESSING STATUS ===
-
-// === TELEMETRY HUNT ===
-function loadHuntResults() {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  const tb = document.getElementById('huntTable');
-  if (!tb) return;
-  tb.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">Hunt queries will appear here. Upload evidence and run analysis to populate threat hunt data.</td></tr>';
-}
-
-const STAGE_ORDER = ['upload','hashing','preprocessing','artifact_extraction','anomaly_detection','correlation','timeline','report'];
-const STAGE_LABELS = {upload:'Upload',hashing:'Hashing',preprocessing:'Preprocessing',artifact_extraction:'Artifact Extraction',anomaly_detection:'Anomaly Detection',correlation:'Correlation',timeline:'Timeline',report:'Report'};
-
-async function loadProcessingJobs() {
-  if (!S.activeCaseId) return notify('Select a case first.');
-  try {
-    const jobs = await api('GET', '/api/jobs/case/' + S.activeCaseId);
-    document.getElementById('psQueued').textContent = jobs.filter(j => j.status === 'QUEUED').length;
-    document.getElementById('psProcessing').textContent = jobs.filter(j => j.status === 'PROCESSING').length;
-    document.getElementById('psCompleted').textContent = jobs.filter(j => j.status === 'COMPLETED').length;
-    document.getElementById('psFailed').textContent = jobs.filter(j => j.status === 'FAILED' || j.status === 'PARTIAL').length;
-    const activeJob = jobs.find(j => j.status === 'PROCESSING' || j.status === 'QUEUED');
-    const pipeEl = document.getElementById('processingPipeline');
-    if (activeJob) {
-      const ci = STAGE_ORDER.indexOf(activeJob.current_stage);
-      pipeEl.innerHTML = '<div class="card"><h2>Active Pipeline: ' + esc(activeJob.job_type) + '</h2><div style="display:flex;gap:4px;margin:12px 0">' +
-        STAGE_ORDER.map((s, i) => {
-          const done = i < ci, cur = i === ci;
-          const bg = done ? 'var(--green)' : cur ? 'var(--cyan)' : '#1a2b41';
-          return '<div style="flex:1;text-align:center;padding:8px 4px;background:' + bg + ';border-radius:3px;font-size:9px;color:#fff">' +
-            (done ? '\u2713 ' : cur ? '<span class="spinner"></span> ' : '') + STAGE_LABELS[s] + '</div>';
-        }).join('') + '</div><div style="font-size:11px;color:var(--muted)">Progress: ' + (activeJob.progress_percent || 0).toFixed(0) + '% \u2014 ' + esc(activeJob.stage_message || '') + '</div></div>';
-    } else { pipeEl.innerHTML = ''; }
-    const tb = document.getElementById('processingTable');
-    if (!jobs.length) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">No jobs found</td></tr>'; return; }
-    tb.innerHTML = jobs.slice(0, 20).map(j => {
-      const sc = {QUEUED:'var(--amber)',PROCESSING:'var(--cyan)',COMPLETED:'var(--green)',FAILED:'var(--red)',PARTIAL:'var(--amber)'};
-      const c = sc[j.status] || 'var(--muted)';
-      const ct = j.created_at ? new Date(j.created_at).toLocaleString() : '\u2014';
-      const p = (j.progress_percent || 0).toFixed(0);
-      const act = j.status === 'FAILED' ? '<button class="btn" onclick="retryJob(&#39;' + j.id + '&#39;)" style="font-size:10px;padding:3px 6px">Retry</button>' : '';
-      return '<tr><td style="color:var(--muted);font-size:10px">' + String(j.id).substring(0, 8) + '</td><td style="color:var(--cyan)">' + esc(j.job_type) + '</td><td><span style="color:' + c + ';font-weight:700">' + j.status + '</span></td><td style="color:var(--muted);font-size:10px">' + esc(STAGE_LABELS[j.current_stage] || j.current_stage) + '</td><td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:6px;background:#1a2b41;border-radius:3px;overflow:hidden"><div style="width:' + p + '%;height:100%;background:' + c + ';border-radius:3px"></div></div><span style="font-size:10px;color:var(--muted)">' + p + '%</span></div></td><td style="color:var(--muted);font-size:10px;white-space:nowrap">' + ct.substring(0, 16) + '</td><td>' + act + '</td></tr>';
-    }).join('');
-  } catch (e) { notifyWarning('Could not load processing jobs: ' + friendlyError(e)); }
-}
-
-async function retryJob(jobId) {
-  try { await api('POST', '/api/jobs/' + jobId + '/retry'); notify('Job retry queued.'); await loadProcessingJobs(); } catch (e) { notifyError('Retry failed: ' + friendlyError(e)); }
-}
-</script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

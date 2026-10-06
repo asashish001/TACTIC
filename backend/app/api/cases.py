@@ -1,19 +1,19 @@
 import shutil
 from pathlib import Path
-from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
+from app.auth.security import RoleChecker, get_current_user, require_case_access
+from app.config import RATE_LIMIT_READ, RATE_LIMIT_WRITE, limiter
 from app.database.session import get_db
 from app.models.case import Case
-from app.models.intelligence import ThreatIntelIndicator, VulnerabilityMatch
 from app.models.user import User
-from app.schemas.case import CaseCreate, CaseUpdate, CaseResponse
-from app.auth.security import get_current_user, require_case_access, RoleChecker
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_WRITE
+from app.schemas.case import CaseCreate, CaseResponse, CaseUpdate
 from app.services.forensic_audit import record_audit, record_custody
+
 
 def _sanitize_like(value: str) -> str:
     """Escape SQL LIKE wildcards to prevent pattern injection in search queries."""
@@ -46,7 +46,6 @@ def list_cases(request: Request,
     The database performs all filtering and pagination — no Python-side
     loading of the full result set.
     """
-    # Clamp page_size to a sane range
     page_size = max(1, min(page_size, 200))
     page = max(1, page)
 
@@ -76,7 +75,7 @@ def list_cases(request: Request,
     )
 
     return CaseListResponse(
-        items=items,
+        items=items,  # type: ignore[arg-type]
         total=total,
         page=page,
         page_size=page_size,
@@ -163,14 +162,9 @@ def delete_case(request: Request,
         raise HTTPException(status_code=404, detail="Case not found.")
     require_case_access(case, current_user)
     
-    # 1. Delete database records FIRST so a file deletion failure doesn't
-    #    leave orphaned DB rows. Model cascade deletes all child records cleanly.
     db.delete(case)
     db.commit()
     
-    # 2. Remove files from disk AFTER the database is updated.
-    #    If this fails the case is already gone from the DB; orphaned files
-    #    can be cleaned up manually or by a background job.
     base_dir = Path(__file__).resolve().parent.parent.parent
     upload_dir = base_dir / "app" / "uploads" / f"case_{case_id}"
     report_dir = base_dir / "app" / "reports" / f"case_{case_id}"
@@ -181,7 +175,6 @@ def delete_case(request: Request,
         if report_dir.exists():
             shutil.rmtree(report_dir)
     except Exception as e:
-        # Log warning but continue — database is already consistent
         import logging
         logging.getLogger(__name__).warning(f"Failed to delete folders for case {case_id}: {e}")
     

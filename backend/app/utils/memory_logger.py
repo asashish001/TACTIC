@@ -1,6 +1,5 @@
 """Memory usage tracking and logging utilities for forensic analysis pipelines."""
 import logging
-import os
 import sys
 import tracemalloc
 
@@ -14,15 +13,13 @@ except Exception:
 
 def get_process_memory_mb() -> float:
     """Return process resident set size (RSS) memory usage in megabytes."""
-    # 1. Tracemalloc check
     try:
-        current, peak = tracemalloc.get_traced_memory()
+        current, _peak = tracemalloc.get_traced_memory()
         if current > 0:
             return current / (1024 * 1024)
     except Exception:
         pass
 
-    # 2. Windows Win32 API fallback
     if sys.platform == "win32":
         try:
             import ctypes
@@ -49,11 +46,9 @@ def get_process_memory_mb() -> float:
         except Exception:
             pass
 
-    # 3. Unix resource fallback
     try:
         import resource
         usage = resource.getrusage(resource.RUSAGE_SELF)
-        # On Linux maxrss is in KB, on macOS in Bytes
         multiplier = 1.0 / 1024 if sys.platform != "darwin" else 1.0 / (1024 * 1024)
         return usage.ru_maxrss * multiplier
     except Exception:

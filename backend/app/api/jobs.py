@@ -1,15 +1,16 @@
 import uuid as _uuid
+from typing import Any
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Any
 
+from app.auth.security import RoleChecker, get_current_user, require_case_access
+from app.config import RATE_LIMIT_HEAVY, RATE_LIMIT_READ, limiter
 from app.database.session import get_db
 from app.models.case import Case
 from app.models.forensic_job import ForensicJob
 from app.models.user import User
-from app.auth.security import get_current_user, require_case_access, RoleChecker
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_HEAVY
 from app.services.job_runner import execute_job_pipeline, retry_job
 
 router = APIRouter(prefix="/api/jobs", tags=["Forensic Background Jobs"])
@@ -45,7 +46,13 @@ def get_case_jobs(request: Request,
     require_case_access(case, current_user)
     
     jobs = db.query(ForensicJob).filter(ForensicJob.case_id == case_id).order_by(ForensicJob.created_at.desc()).all()
-    return jobs
+    
+    latest_jobs = {}
+    for job in jobs:
+        if job.evidence_id not in latest_jobs:
+            latest_jobs[job.evidence_id] = job
+            
+    return list(latest_jobs.values())
 
 
 @router.get("/{job_id}", response_model=JobStatusResponse)

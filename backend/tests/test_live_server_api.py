@@ -1,13 +1,14 @@
-import urllib.request
-import urllib.parse
-import urllib.error
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 import uuid
+from pathlib import Path
+
 import pytest
 
 BASE_URL = os.getenv("AIDFA_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
@@ -88,7 +89,6 @@ def test_suite():
     print("AIDFA API COMPREHENSIVE INTEGRATION TEST SUITE")
     print("==================================================")
 
-    # 1. Register new investigator
     print("\n[TEST 1] Registering a new investigator...")
     unique_username = f"investigator_{uuid.uuid4().hex[:6]}"
     reg_payload = {
@@ -103,7 +103,6 @@ def test_suite():
         return False
     print(f"SUCCESS: Registered user '{res['username']}' with role '{res['role']}'")
 
-    # 2. Login to get JWT Token
     print("\n[TEST 2] Authenticating credentials...")
     login_payload = {
         "username": unique_username,
@@ -117,7 +116,6 @@ def test_suite():
     headers = {"Authorization": f"Bearer {token}"}
     print("SUCCESS: Retrieved JWT access token.")
 
-    # 3. Create Case
     print("\n[TEST 3] Creating new case file...")
     case_no = f"CASE-{uuid.uuid4().hex[:6].upper()}"
     case_payload = {
@@ -133,15 +131,12 @@ def test_suite():
     case_id = res["id"]
     print(f"SUCCESS: Created case file '{res['name']}' (ID: {case_id})")
 
-    # 4. Upload raw evidence log file (Construct multipart body manually)
     print("\n[TEST 4] Uploading raw text evidence artifact...")
     boundary = "AIDFAForensicsBoundary"
     body_parts = []
     
-    # Add case_id text field
     body_parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"case_id\"\r\n\r\n{case_id}\r\n".encode())
     
-    # Add file content field containing suspicious keywords
     file_content = (
         "2026-08-02T10:15:00Z - Authorized admin login successful.\n"
         "2026-08-02T10:20:12Z - Unauthorized program running: mimikatz.exe privilege dump.\n"
@@ -170,7 +165,6 @@ def test_suite():
         return False
     print(f"SUCCESS: Preserved evidence file '{res['filename']}' with SHA256: {res['sha256'][:16]}...")
 
-    # 5. Trigger AI Risk Analysis & Background Job Polling
     print("\n[TEST 5] Executing AI analysis engine & Async Background Job System...")
     res, code = make_request(f"{BASE_URL}/api/analyze", data={"evidence_id": evidence_id}, headers=headers, method="POST")
     if code != 202:
@@ -179,7 +173,6 @@ def test_suite():
     job_id = res["job_id"]
     print(f"SUCCESS: Asynchronous analysis job queued (Job ID: {job_id[:8]}). Polling status...")
 
-    # Poll job status until COMPLETED
     job_completed = False
     for _ in range(30):
         time.sleep(1)
@@ -198,14 +191,12 @@ def test_suite():
         return False
     print("SUCCESS: Asynchronous background forensic pipeline completed across all 8 stages.")
 
-    # Also test synchronous fallback mode
     sync_res, sync_code = make_request(f"{BASE_URL}/api/analyze", data={"evidence_id": evidence_id, "sync": True}, headers=headers, method="POST")
     if sync_code != 201:
         print(f"FAILED: Synchronous analysis returned code {sync_code}, body: {sync_res}")
         return False
     print(f"SUCCESS: Synchronous mode verified. Flagged {len(sync_res)} threat components.")
 
-    # 6. Fetch timeline
     print("\n[TEST 6] Reconstructing case chronological timeline...")
     res, code = make_request(f"{BASE_URL}/api/timeline/{case_id}", headers=headers, method="GET")
     if code != 200:
@@ -213,7 +204,6 @@ def test_suite():
         return False
     print(f"SUCCESS: Reconstructed timeline containing {len(res['events'])} chronological events.")
 
-    # 7. Fetch correlation graph mapping
     print("\n[TEST 7] Compiling entity correlation graph...")
     res, code = make_request(f"{BASE_URL}/api/correlation/{case_id}", headers=headers, method="GET")
     if code != 200:
@@ -221,7 +211,6 @@ def test_suite():
         return False
     print(f"SUCCESS: Graph generated with {len(res['nodes'])} nodes and {len(res['edges'])} link connections.")
 
-    # 8. Trigger AI Chat RAG assistant
     print("\n[TEST 8] Querying context chatbot...")
     chat_payload = {
         "case_id": case_id,
@@ -233,7 +222,6 @@ def test_suite():
         return False
     print(f"SUCCESS: Chatbot responded (Model: {res['provider']}):\n{res['answer']}")
 
-    # 9. Generate Report Lab PDF Document
     print("\n[TEST 9] Compiling formal PDF Audit Report...")
     report_payload = {
         "case_id": case_id,
@@ -245,7 +233,6 @@ def test_suite():
         return False
     print(f"SUCCESS: PDF Report saved as '{res['filename']}'")
 
-    # 10. Verify durable forensic accountability records
     print("\n[TEST 10] Verifying chain of custody and audit records...")
     custody, code = make_request(f"{BASE_URL}/api/forensic-records/cases/{case_id}/chain-of-custody", headers=headers)
     if code != 200 or not any(item["action"] == "evidence_ingested" for item in custody):
@@ -258,7 +245,6 @@ def test_suite():
         return False
     print("SUCCESS: SHA-1, chain-of-custody, and audit records are preserved.")
 
-    # 11. Upload and analyze a safe browser-bookmark export
     print("\n[TEST 11] Extracting browser forensic artifacts...")
     fixture_path = PROJECT_ROOT / "test_data" / "browser_bookmarks.json"
     if not fixture_path.is_file():
@@ -286,7 +272,6 @@ def test_suite():
         return False
     print(f"SUCCESS: Extracted {result['artifacts_extracted']} browser artifact(s) without reading passwords.")
 
-    # 12. Verify /model/status info endpoint
     print("\n[TEST 12] Querying Hugging Face Transformers model status...")
     model_status, code = make_request(f"{BASE_URL}/model/status", headers=headers)
     if code != 200 or "loaded" not in model_status or "model_name" not in model_status:
@@ -294,7 +279,6 @@ def test_suite():
         return False
     print(f"SUCCESS: Model status retrieved (Name: {model_status['model_name']}, Loaded: {model_status['loaded']}, Error: {model_status['error_state']})")
 
-    # 13. Verify NLP Common Artifact Extraction Pipeline & Evidence Linking
     print("\n[TEST 13] Executing NLP Artifact Extraction Pipeline & Source Evidence Linking...")
     extracted_res, code = make_request(f"{BASE_URL}/api/artifacts/evidence/{evidence_id}/extract", data={}, headers=headers, method="POST")
     if code != 200 or extracted_res.get("artifacts_extracted", 0) < 1:
@@ -313,26 +297,22 @@ def test_suite():
 
     print(f"SUCCESS: Extracted {len(extracted_items)} common artifact(s) retaining source evidence ID linking.")
 
-    # 14. Verify System Settings & Configurable Anomaly Threshold API
     print("\n[TEST 14] Testing Configurable Anomaly Detection Threshold API & Validation...")
     settings, code = make_request(f"{BASE_URL}/api/settings", headers=headers)
     if code != 200 or "anomaly_threshold" not in settings:
         print(f"FAILED: GET /api/settings returned code {code}, body: {settings}")
         return False
     
-    # Test valid threshold update
     up_res, code = make_request(f"{BASE_URL}/api/settings", data={"anomaly_threshold": 0.85}, headers=headers, method="PUT")
     if code != 200 or up_res.get("anomaly_threshold") != 0.85:
         print(f"FAILED: PUT /api/settings returned code {code}, body: {up_res}")
         return False
 
-    # Test invalid threshold validation (< 0 or > 1)
-    invalid_res, code = make_request(f"{BASE_URL}/api/settings", data={"anomaly_threshold": 1.5}, headers=headers, method="PUT")
+    _invalid_res, code = make_request(f"{BASE_URL}/api/settings", data={"anomaly_threshold": 1.5}, headers=headers, method="PUT")
     if code not in (400, 422):
         print(f"FAILED: Expected validation failure (400/422) for invalid threshold 1.5, got code {code}")
         return False
 
-    # Restore threshold to 0.80 default
     make_request(f"{BASE_URL}/api/settings", data={"anomaly_threshold": 0.80}, headers=headers, method="PUT")
     print(f"SUCCESS: System Settings API verified (Default threshold: {settings['anomaly_threshold']}, Updated: 0.85, Validation Error Code: {code}).")
 

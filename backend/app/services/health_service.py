@@ -5,12 +5,12 @@ import shutil
 import time
 from pathlib import Path
 from typing import Any
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("tactic.health_service")
 
-# Track application startup time for uptime calculation
 APP_START_TIME = datetime.datetime.now(datetime.timezone.utc)
 APP_VERSION = "2.0.0"
 
@@ -42,7 +42,6 @@ def check_database_health(db: Session | None, timeout_seconds: float = 2.0) -> d
 
     start_time = time.perf_counter()
     try:
-        # SQLite / Postgres query with 2s timeout
         db.execute(text("SELECT 1")).first()
         latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
         return {
@@ -155,7 +154,6 @@ def check_system_health(db: Session | None = None) -> dict[str, Any]:
     ml_health = check_ml_anomaly_model_health(db)
     storage_health = check_storage_health()
 
-    # Determine overall system health state
     if db_health["status"] != "connected" or storage_health["status"] == "error":
         overall_status = "error"
     elif not nlp_health["loaded"] or storage_health["status"] == "warning" or ml_health["status"] != "ready":

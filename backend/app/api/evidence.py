@@ -1,26 +1,37 @@
+import logging
 import os
 import tempfile
-import logging
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, status
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+from app.auth.security import RoleChecker, get_current_user, require_case_access
+from app.config import RATE_LIMIT_READ, RATE_LIMIT_UPLOAD, limiter
 from app.database.session import get_db
 from app.models.case import Case
 from app.models.evidence import Evidence
 from app.models.user import User
 from app.schemas.evidence import EvidenceResponse
-from app.auth.security import get_current_user, require_case_access, RoleChecker
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_UPLOAD
-from app.services.evidence_processor import (
-    calculate_hashes,
-    process_evidence
-)
-from app.services.forensic_audit import record_audit, record_custody, store_evidence_hashes
 from app.services.duplicate_evidence import find_duplicate_evidence
+from app.services.evidence_processor import calculate_hashes, process_evidence
+from app.services.forensic_audit import (
+    record_audit,
+    record_custody,
+    store_evidence_hashes,
+)
 from app.services.upload_validation import (
     UploadValidationError,
     sanitize_evidence_filename,
@@ -58,14 +69,11 @@ async def upload_evidence(request: Request,
         raise HTTPException(status_code=404, detail="Case not found.")
     require_case_access(case, current_user)
     
-    # Treat the client name and MIME header as untrusted metadata. Only a safe
-    # display name and a server-generated storage name are ever persisted.
     try:
         filename, suffix = sanitize_evidence_filename(file.filename or "")
     except UploadValidationError as error:
         raise upload_error(status.HTTP_400_BAD_REQUEST, error.code, error.message)
 
-    # Build secure directory
     base_dir = Path(__file__).resolve().parent.parent.parent
     upload_dir = (base_dir / "app" / "uploads" / f"case_{case_id}").resolve()
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -77,8 +85,6 @@ async def upload_evidence(request: Request,
     temp_path = None
     final_path = None
 
-    # Save incoming stream with an actual byte limit; Content-Length alone is
-    # not trustworthy for multipart uploads.
     try:
         with tempfile.NamedTemporaryFile(mode="wb", dir=temp_dir, prefix="evidence-", suffix=".part", delete=False) as buffer:
             temp_path = Path(buffer.name)
@@ -97,9 +103,6 @@ async def upload_evidence(request: Request,
             temp_path.unlink()
         raise upload_error(status.HTTP_500_INTERNAL_SERVER_ERROR, "STORAGE_WRITE_FAILED", "Evidence could not be safely staged.")
 
-    # Hash first, then reject identical content in this investigation before
-    # metadata extraction or a new Evidence record is created. The temporary
-    # upload is removed; the original evidence remains untouched.
     try:
         hashes = calculate_hashes(temp_path)
         detected_mime = validate_evidence_content(temp_path, suffix)
@@ -137,14 +140,11 @@ async def upload_evidence(request: Request,
             },
         )
 
-    # Process only validated content. The database uniqueness constraint is the
-    # final guard when two equivalent uploads arrive at the same time.
     try:
         metadata = process_evidence(temp_path, suffix)
         if metadata.get("kind") == "error":
             raise UploadValidationError("MALFORMED_FILE", metadata.get("message", "Evidence parser rejected this file."))
         
-        # Add signature mismatch state inside metadata payload
         metadata["mime_mismatch"] = False
         metadata["detected_mime"] = detected_mime
 
@@ -197,7 +197,7 @@ async def upload_evidence(request: Request,
             db.commit()
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"message": "Duplicate evidence rejected: identical SHA-256 already exists in this investigation.", "duplicate": True, "original_evidence": {"id": duplicate.id, "filename": duplicate.filename}})
         raise upload_error(status.HTTP_409_CONFLICT, "DUPLICATE_EVIDENCE", "An equivalent evidence upload is already being processed.")
-    except Exception as exc:
+    except Exception:
         if temp_path and temp_path.exists():
             temp_path.unlink()
         db.rollback()
@@ -232,7 +232,6 @@ def list_evidence(request: Request,
         raise HTTPException(status_code=404, detail="Case not found.")
     require_case_access(case, current_user)
 
-    # Clamp page_size to a sane range
     page_size = max(1, min(page_size, 200))
     page = max(1, page)
 
@@ -245,11 +244,9 @@ def list_evidence(request: Request,
             )
         )
 
-    # Total count before pagination (single COUNT query)
     total = query.count()
     total_pages = max(1, -(-total // page_size))  # ceil division
 
-    # Paginated results (single SELECT with LIMIT/OFFSET)
     items = (
         query
         .order_by(Evidence.ingested_at.desc())
@@ -259,7 +256,7 @@ def list_evidence(request: Request,
     )
 
     return EvidenceListResponse(
-        items=items,
+        items=items,  # type: ignore[arg-type]
         total=total,
         page=page,
         page_size=page_size,
@@ -289,7 +286,6 @@ def download_evidence(request: Request,
     base_dir = Path(__file__).resolve().parent.parent.parent
     file_path = (base_dir / "app" / "uploads" / evidence.stored_path).resolve()
 
-    # Traversal escape verification
     uploads_root = (base_dir / "app" / "uploads").resolve()
     if uploads_root not in file_path.parents or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Evidence file could not be located on disk.")

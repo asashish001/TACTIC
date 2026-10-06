@@ -138,9 +138,9 @@ def verify_evidence_integrity(db, evidence, *, actor_id: int | None = None) -> I
                 VERIFIED if actual_sha256.lower() == evidence.sha256.lower() else TAMPERED,
                 actual_sha256,
             )
-        except OSError:
-            # An unreadable artifact cannot be safely analysed. It is treated
-            # as missing from the evidence store and never opened by analysis.
+        except OSError as exc:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to read {path} for integrity check: {exc}")
             result = IntegrityCheckResult(MISSING)
 
     evidence.integrity_status = result.status

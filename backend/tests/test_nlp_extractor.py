@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.ai.nlp_extractor import NLPArtifactExtractor, nlp_extractor_instance
@@ -40,8 +41,6 @@ def test_nlp_extractor_all_13_artifact_types():
 
     extracted_types = {item["artifact_type"] for item in artifacts}
     
-    # Mandatory 13 types: PERSON, USERNAME, IP_ADDRESS, DOMAIN, URL, EMAIL,
-    # FILE_PATH, PROCESS, HOSTNAME, TIMESTAMP, SESSION_ID, COMMAND, EVENT
     required_types = {
         "PERSON", "USERNAME", "IP_ADDRESS", "DOMAIN", "URL", "EMAIL",
         "FILE_PATH", "PROCESS", "HOSTNAME", "TIMESTAMP", "SESSION_ID", "COMMAND", "EVENT"
@@ -50,7 +49,6 @@ def test_nlp_extractor_all_13_artifact_types():
     missing_types = required_types - extracted_types
     assert not missing_types, f"Missing entity types: {missing_types}"
 
-    # Verify source evidence linking and non-null properties
     for item in artifacts:
         assert item["case_id"] == 1
         assert item["evidence_id"] == 42
@@ -71,7 +69,6 @@ def test_fallback_when_model_load_fails():
     assert status["loaded"] is False
     assert status["error_state"] is not None
 
-    # Extraction must still succeed cleanly via fallback pipeline
     test_text = "Suspicious connection to 10.0.0.5 by user admin."
     artifacts = invalid_extractor.extract_artifacts(test_text, case_id=2, evidence_id=99)
     assert len(artifacts) > 0

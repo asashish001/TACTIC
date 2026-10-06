@@ -1,18 +1,28 @@
 import math
-from pydantic import BaseModel
+
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.auth.security import RoleChecker, get_current_user, require_case_access
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_HEAVY
+from app.config import RATE_LIMIT_HEAVY, RATE_LIMIT_READ, limiter
 from app.database.session import get_db
 from app.models.case import Case
 from app.models.evidence import Evidence
 from app.models.finding import Finding
 from app.models.intelligence import ThreatIntelIndicator, VulnerabilityMatch
 from app.models.user import User
-from app.schemas.intelligence import IntelligenceAnalysisResponse, ThreatIndicatorResponse, VulnerabilityMatchResponse
-from app.services.threat_intelligence import extract_iocs, extract_software, lookup_cves, remote_lookups_enabled
+from app.schemas.intelligence import (
+    IntelligenceAnalysisResponse,
+    ThreatIndicatorResponse,
+    VulnerabilityMatchResponse,
+)
+from app.services.threat_intelligence import (
+    extract_iocs,
+    extract_software,
+    lookup_cves,
+    remote_lookups_enabled,
+)
 
 router = APIRouter(prefix="/api/intelligence", tags=["CVE & Threat Intelligence"])
 
@@ -74,7 +84,7 @@ def list_vulnerabilities(request: Request, case_id: int, page: int = 1, page_siz
     total = db.query(VulnerabilityMatch).filter(VulnerabilityMatch.case_id == case_id).count()
     total_pages = max(1, math.ceil(total / page_size))
     items = db.query(VulnerabilityMatch).filter(VulnerabilityMatch.case_id == case_id).order_by(VulnerabilityMatch.risk_score.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return PaginatedVulnerabilityResponse(items=items, total=total, page=page, page_size=page_size, total_pages=total_pages)
+    return PaginatedVulnerabilityResponse(items=items, total=total, page=page, page_size=page_size, total_pages=total_pages)  # type: ignore[arg-type]
 
 
 @router.get("/cases/{case_id}/indicators", response_model=PaginatedIndicatorResponse)
@@ -88,4 +98,4 @@ def list_indicators(request: Request, case_id: int, page: int = 1, page_size: in
     total = db.query(ThreatIntelIndicator).filter(ThreatIntelIndicator.case_id == case_id).count()
     total_pages = max(1, math.ceil(total / page_size))
     items = db.query(ThreatIntelIndicator).filter(ThreatIntelIndicator.case_id == case_id).order_by(ThreatIntelIndicator.last_checked.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return PaginatedIndicatorResponse(items=items, total=total, page=page, page_size=page_size, total_pages=total_pages)
+    return PaginatedIndicatorResponse(items=items, total=total, page=page, page_size=page_size, total_pages=total_pages)  # type: ignore[arg-type]

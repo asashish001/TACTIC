@@ -1,18 +1,26 @@
 import datetime
 from pathlib import Path
+
 from docx import Document
 from docx.shared import Inches, Pt
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import (
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
 
 def build_pdf_report(case_data: dict, destination: Path) -> None:
     """Compile case evidence, timelines, and findings into a publication-quality PDF report."""
     styles = getSampleStyleSheet()
     story = []
     
-    # Custom heading style
     custom_title_style = ParagraphStyle(
         "CoverTitle",
         parent=styles["Title"],
@@ -34,7 +42,7 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
         spaceAfter=10
     )
 
-    custom_code = ParagraphStyle(
+    ParagraphStyle(
         "CodeBox",
         parent=styles["Code"],
         fontName="Courier",
@@ -45,7 +53,6 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
         spaceAfter=6
     )
 
-    # 1. Cover Page
     story.append(Spacer(1, 150))
     story.append(Paragraph("AI DIGITAL FORENSICS ASSISTANT", custom_title_style))
     story.append(Paragraph("Forensic Investigation Report", styles["Heading2"]))
@@ -58,12 +65,10 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
     story.append(Paragraph(f"<b>Generated At:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles["Normal"]))
     story.append(PageBreak())
     
-    # 2. Executive Summary
     story.append(Paragraph("Executive Summary", custom_heading1))
     story.append(Paragraph(metadata["description"], styles["BodyText"]))
     story.append(Spacer(1, 15))
 
-    # 3. Evidence Ingested Summary
     story.append(Paragraph("Preserved Evidence Items", custom_heading1))
     story.append(Paragraph(f"A total of {len(case_data['evidence'])} evidence files were ingested and verified for cryptographic integrity.", styles["BodyText"]))
     story.append(Spacer(1, 10))
@@ -92,7 +97,6 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
     story.append(ev_table)
     story.append(Spacer(1, 15))
 
-    # 4. Timeline
     story.append(Paragraph("Chronological Case Timeline", custom_heading1))
     timeline_rows = [["Timestamp", "Event Description", "Evidence Source", "Severity"]]
     for ev in case_data["timeline"][:15]: # Show first 15 events
@@ -120,7 +124,6 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
         story.append(Paragraph("No chronological events found.", styles["Italic"]))
     story.append(Spacer(1, 15))
 
-    # 5. AI Findings & Anomaly Detection Config
     story.append(Paragraph("AI-Flagged Suspicious Activity & Findings", custom_heading1))
     
     settings_cfg = case_data.get("settings", {})
@@ -171,7 +174,6 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
         
     story.append(Spacer(1, 15))
 
-    # Render detailed XAI Feature Contribution Breakdown Tables for Anomalies
     if xai_breakdowns:
         story.append(Paragraph("Explainable AI (XAI) Feature Attribution & Traceability", custom_heading1))
         for item in xai_breakdowns:
@@ -205,10 +207,8 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
                 story.append(Paragraph(f"<i>Trace Proof: {trace.get('method')} | Trace ID: {trace.get('trace_id')} | Raw Score: {trace.get('raw_decision_score')}</i>", styles["Italic"]))
             story.append(Spacer(1, 10))
 
-    # 6. Recommendations
     story.append(Paragraph("Remediation Recommendations", custom_heading1))
     if case_data["findings"]:
-        # Extract unique recommendations
         recs = list({f["recommendation"] for f in case_data["findings"] if f.get("recommendation")})
         for i, rec in enumerate(recs):
             story.append(Paragraph(f"<b>[{i+1}]</b> {rec}", styles["BodyText"]))
@@ -217,7 +217,6 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
         story.append(Paragraph("No immediate remediation recommendations required.", styles["BodyText"]))
 
 
-    # 7. Conclusion & Investigation Summary
     story.append(Paragraph("Conclusion", custom_heading1))
     
     total_findings = len(case_data["findings"])
@@ -278,7 +277,6 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
     
     story.append(Spacer(1, 15))
     
-    # 8. Human-in-the-Loop Notice
     story.append(Paragraph("Investigator Notice", custom_heading1))
     
     notice_style = ParagraphStyle(
@@ -297,23 +295,23 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
     )
     
     notices = [
-        "This report was generated with the assistance of Artificial Intelligence (AI) models. "
+        ("This report was generated with the assistance of Artificial Intelligence (AI) models. "
         "All AI-generated findings, classifications, and anomaly scores are <b>investigative leads</b> "
-        "and should not be treated as definitive conclusions.",
+        "and should not be treated as definitive conclusions."),
         
-        "Each finding includes an Explainable AI (XAI) attribution trace showing which features "
+        ("Each finding includes an Explainable AI (XAI) attribution trace showing which features "
         "contributed to the detection. Investigators should review these attributions and correlate "
-        "them with domain knowledge before drawing conclusions.",
+        "them with domain knowledge before drawing conclusions."),
         
-        "AI results may contain false positives and false negatives. The final interpretation and "
+        ("AI results may contain false positives and false negatives. The final interpretation and "
         "legal conclusions remain the responsibility of the qualified forensic investigator. "
         "Confidence scores and anomaly thresholds are configurable and should be validated against "
-        "labeled ground-truth data for the specific investigation context.",
+        "labeled ground-truth data for the specific investigation context."),
         
-        f"Report generated by T.A.C.T.I.C. v2.0.0 on "
+        (f"Report generated by T.A.C.T.I.C. v2.0.0 on "
         f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}. "
         f"All timestamps are normalized to UTC. Original source timestamps are preserved in the "
-        f"timeline evidence trail."
+        f"timeline evidence trail.")
     ]
     
     for notice in notices:
@@ -335,14 +333,12 @@ def build_docx_report(case_data: dict, destination: Path) -> None:
     """Compile case evidence, timelines, and findings into a styled DOCX report."""
     doc = Document()
     
-    # Configure margins
     section = doc.sections[0]
     section.top_margin = Inches(0.8)
     section.bottom_margin = Inches(0.8)
     section.left_margin = Inches(0.8)
     section.right_margin = Inches(0.8)
     
-    # Title Cover page style
     title = doc.add_paragraph()
     title.alignment = 1 # Centered
     run = title.add_run("AI DIGITAL FORENSICS ASSISTANT\nForensic Investigation Report\n")
@@ -357,11 +353,9 @@ def build_docx_report(case_data: dict, destination: Path) -> None:
     doc.add_paragraph(f"Report Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     doc.add_page_break()
     
-    # Executive Summary
     doc.add_heading("Executive Summary", level=1)
     doc.add_paragraph(metadata["description"])
     
-    # Evidence Summary Table
     doc.add_heading("Preserved Evidence Items", level=1)
     table = doc.add_table(rows=1, cols=4)
     table.style = "Table Grid"
@@ -378,7 +372,6 @@ def build_docx_report(case_data: dict, destination: Path) -> None:
         row_cells[2].text = item.get("integrity_status", "VERIFIED")
         row_cells[3].text = f"{item['sha256'][:24]}..."
 
-    # Timeline Table
     doc.add_heading("Chronological Timeline", level=1)
     time_table = doc.add_table(rows=1, cols=4)
     time_table.style = "Table Grid"
@@ -395,7 +388,6 @@ def build_docx_report(case_data: dict, destination: Path) -> None:
         row[2].text = ev["evidence_source"]
         row[3].text = ev["priority"].upper()
         
-    # AI Findings Table
     doc.add_heading("AI Suspicious Findings", level=1)
     find_table = doc.add_table(rows=1, cols=4)
     find_table.style = "Table Grid"
@@ -412,7 +404,6 @@ def build_docx_report(case_data: dict, destination: Path) -> None:
         row[2].text = f"{f['risk_score']}%"
         row[3].text = f["reason"]
 
-    # Recommendations
     doc.add_heading("Remediation Recommendations", level=1)
     if case_data["findings"]:
         recs = list({f["recommendation"] for f in case_data["findings"] if f.get("recommendation")})
@@ -422,7 +413,6 @@ def build_docx_report(case_data: dict, destination: Path) -> None:
         doc.add_paragraph("No remediation recommendations flagged.")
 
 
-    # Conclusion & Investigation Summary
     doc.add_heading("Conclusion", level=1)
     
     total_findings = len(case_data["findings"])
@@ -459,23 +449,22 @@ def build_docx_report(case_data: dict, destination: Path) -> None:
         "Chain-of-custody records are maintained in the audit log."
     )
     
-    # Human-in-the-Loop Notice
     doc.add_heading("Investigator Notice", level=1)
     
     notices = [
-        "This report was generated with the assistance of Artificial Intelligence (AI) models. "
+        ("This report was generated with the assistance of Artificial Intelligence (AI) models. "
         "All AI-generated findings, classifications, and anomaly scores are investigative leads "
-        "and should not be treated as definitive conclusions.",
+        "and should not be treated as definitive conclusions."),
         
-        "Each finding includes an Explainable AI (XAI) attribution trace showing which features "
-        "contributed to the detection. Investigators should review these attributions before drawing conclusions.",
+        ("Each finding includes an Explainable AI (XAI) attribution trace showing which features "
+        "contributed to the detection. Investigators should review these attributions before drawing conclusions."),
         
-        "AI results may contain false positives and false negatives. The final interpretation and "
-        "legal conclusions remain the responsibility of the qualified forensic investigator.",
+        ("AI results may contain false positives and false negatives. The final interpretation and "
+        "legal conclusions remain the responsibility of the qualified forensic investigator."),
         
-        f"Report generated by T.A.C.T.I.C. v2.0.0 on "
+        (f"Report generated by T.A.C.T.I.C. v2.0.0 on "
         f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}. "
-        f"All timestamps are normalized to UTC."
+        f"All timestamps are normalized to UTC.")
     ]
     
     for notice in notices:

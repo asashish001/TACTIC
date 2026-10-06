@@ -1,21 +1,17 @@
 import hashlib
 import logging
 import mimetypes
-import uuid
-import shutil
-import json
 from pathlib import Path
-from datetime import datetime, timezone
+from xml.etree import ElementTree
+
 import exifread
-from PIL import Image, ExifTags
-from PyPDF2 import PdfReader
 from docx import Document
 from Evtx.Evtx import Evtx
-from xml.etree import ElementTree
+from PIL import ExifTags, Image
+from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
 
-# MIME check mapping
 SIGNATURES = (
     (b"\x89PNG\r\n\x1a\n", "image/png", {"png"}),
     (b"\xff\xd8\xff", "image/jpeg", {"jpg", "jpeg"}),
@@ -85,7 +81,6 @@ def extract_image_metadata(file_path: Path) -> dict:
             "timestamp": tags.get("DateTimeOriginal") or tags.get("DateTime"),
             "software": tags.get("Software"), "raw_exif": tags,
         }
-    # Exifread GPS processing
     with file_path.open("rb") as stream:
         gps = exifread.process_file(stream, details=False, stop_tag="GPS GPSLongitude")
     latitude = _gps_decimal(gps.get("GPS GPSLatitude").values if gps.get("GPS GPSLatitude") else None, gps.get("GPS GPSLatitudeRef"))
@@ -95,7 +90,7 @@ def extract_image_metadata(file_path: Path) -> dict:
     return result
 
 def extract_pdf_metadata(file_path: Path) -> dict:
-    """Extract metadata using PyPDF2."""
+    """Extract metadata using pypdf."""
     reader = PdfReader(str(file_path), strict=False)
     properties = reader.metadata or {}
     return {
@@ -170,11 +165,10 @@ def process_evidence(file_path: Path, extension: str) -> dict:
         elif ext == "evtx":
             meta = {"kind": "evtx", "records": extract_evtx_records(file_path)}
         elif ext in {"txt", "csv", "log", "json", "xml", "md", "markdown"}:
-            # Stream first 5KB without loading entire file into memory
             sample_size = 5000
             with file_path.open("r", encoding="utf-8", errors="replace") as f:
                 sample = f.read(sample_size)
             meta = {"kind": "text", "sample": sample}
     except Exception as e:
-        meta = {"kind": "error", "message": f"Parsing failed: {str(e)}"}
+        meta = {"kind": "error", "message": f"Parsing failed: {e!s}"}
     return meta

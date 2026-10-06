@@ -1,14 +1,20 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
+
+from app.auth.security import (
+    RoleChecker,
+    get_current_user,
+    get_password_hash,
+    verify_password,
+)
+from app.config import RATE_LIMIT_READ, RATE_LIMIT_WRITE, limiter
 from app.database.session import get_db
-from app.auth.security import get_current_user, verify_password, get_password_hash, RoleChecker
-from app.config import limiter, RATE_LIMIT_READ, RATE_LIMIT_WRITE
 from app.models.user import User
 from app.schemas.user import UserResponse, UserSettingsUpdate
 from app.services.timezone_service import resolve_timezone
-import logging
-
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/users", tags=["Users & Settings"])
@@ -41,10 +47,9 @@ def update_user_settings(request: Request,
 ):
     """Update preferred investigator timezone and profile settings."""
     if payload.timezone:
-        # Validate timezone string
         try:
             resolve_timezone(payload.timezone)
-        except Exception as exc:
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid timezone identifier '{payload.timezone}'."

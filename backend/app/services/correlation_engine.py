@@ -7,14 +7,14 @@ import datetime
 import logging
 from collections import defaultdict
 from typing import Any
+
 from sqlalchemy.orm import Session
 
-from app.models.evidence import Evidence
-from app.models.finding import Finding
-from app.models.extracted_artifact import ExtractedArtifact
-from app.models.browser_artifact import BrowserArtifact
-from app.models.network_artifact import NetworkArtifact
 from app.models.artifact_correlation import ArtifactCorrelation
+from app.models.browser_artifact import BrowserArtifact
+from app.models.extracted_artifact import ExtractedArtifact
+from app.models.finding import Finding
+from app.models.network_artifact import NetworkArtifact
 from app.services.timezone_service import safe_parse_timestamp
 
 logger = logging.getLogger("tactic.correlation_engine")
@@ -22,7 +22,6 @@ logger = logging.getLogger("tactic.correlation_engine")
 DEFAULT_WEIGHTS = {"time": 0.30, "entity": 0.35, "source": 0.15, "event": 0.20}
 DEFAULT_TIME_WINDOW = 3600 # 1 hour in seconds
 
-# Batch size for database inserts to bound memory usage
 BATCH_SIZE = 500
 
 
@@ -38,7 +37,6 @@ def compute_time_similarity(t1: Any, t2: Any, window_seconds: float = 3600) -> f
     if delta_seconds >= window_seconds:
         return 0.0
 
-    # Linear decay from 1.0 (exact match) to 0.0 (at boundary window)
     return round(max(0.0, 1.0 - (delta_seconds / window_seconds)), 4)
 
 
@@ -58,12 +56,10 @@ def compute_entity_similarity(
     if not v1_clean or not v2_clean:
         return 0.0, ""
 
-    # Exact entity value match
     if v1_clean == v2_clean:
         ent_label = type1.upper() if type1 == type2 else f"{type1.upper()}/{type2.upper()}"
         return 1.0, f"Exact {ent_label} match ({val1})"
 
-    # Domain or Username substring match (e.g. "admin" in "domain\\admin")
     if (v1_clean in v2_clean or v2_clean in v1_clean) and len(min(v1_clean, v2_clean)) >= 4:
         return 0.75, f"Sub-string entity match ({val1} ~ {val2})"
 
@@ -96,7 +92,6 @@ def compute_event_relationship(event_type1: str, event_type2: str) -> float:
     if e1 == e2:
         return 1.0
 
-    # Categorical event pairings (e.g. logon + process execution)
     auth_types = {"successful_login", "failed_login", "4624", "4625", "logon"}
     exec_types = {"program_execution", "4688", "1", "execution", "process"}
 
@@ -149,7 +144,7 @@ def _collect_artifacts(case_id: int, db: Session) -> list[dict]:
             "entity_type": art.artifact_type,
             "timestamp": getattr(art, "timestamp", None) or getattr(art, "extracted_at", None),
             "source": art.evidence.filename if art.evidence else "Extracted Engine",
-            "event_type": art.artifact_type.lower(),
+            "event_type": (art.artifact_type or "unknown").lower(),
             "_ts_dt": safe_parse_timestamp(
                 getattr(art, "timestamp", None) or getattr(art, "extracted_at", None)
             ),
@@ -164,36 +159,36 @@ def _collect_artifacts(case_id: int, db: Session) -> list[dict]:
             "entity_type": "finding_category",
             "timestamp": f.created_at,
             "source": f.evidence.filename if f.evidence else "AI Engine",
-            "event_type": f.severity.lower(),
+            "event_type": (f.severity or "info").lower(),
             "_ts_dt": safe_parse_timestamp(f.created_at),
         })
 
     for b in db.query(BrowserArtifact).filter(BrowserArtifact.case_id == case_id).all():
-        ts = b.timestamp or b.created_at
+        ts = getattr(b, "timestamp", None) or getattr(b, "extracted_at", None)
         items.append({
             "type": "BrowserArtifact",
             "id": f"browser_{b.id}",
             "label": f"{b.browser.upper()} {b.artifact_type}: {b.domain or b.url or b.title or 'Record'}"[:35],
-            "entity_value": b.domain or b.url or b.username_value or "",
+            "entity_value": b.domain or b.url or (b.details.get("username_value") if isinstance(b.details, dict) else "") or "",
             "entity_type": "domain" if b.domain else "url",
             "timestamp": ts,
             "source": f"Browser ({b.browser})",
-            "event_type": b.artifact_type,
+            "event_type": (b.artifact_type or "unknown").lower(),
             "_ts_dt": safe_parse_timestamp(ts),
         })
 
     for n in db.query(NetworkArtifact).filter(NetworkArtifact.case_id == case_id).all():
-        val = n.destination_ip or n.source_ip or n.domain or ""
-        ts = n.timestamp or n.created_at
+        val = n.destination_ip or n.source_ip or (n.details.get("domain") if isinstance(n.details, dict) else "") or n.value or ""
+        ts = getattr(n, "timestamp", None) or getattr(n, "extracted_at", None)
         items.append({
             "type": "NetworkArtifact",
             "id": f"net_{n.id}",
-            "label": f"Network {n.protocol}: {val}"[:35],
+            "label": f"Network {n.protocol or n.artifact_type or 'Unknown'}: {val}"[:35],
             "entity_value": val,
             "entity_type": "ip" if (n.destination_ip or n.source_ip) else "domain",
             "timestamp": ts,
-            "source": f"Network ({n.protocol})",
-            "event_type": n.protocol.lower(),
+            "source": f"Network ({n.protocol or n.artifact_type or 'Unknown'})",
+            "event_type": (n.protocol or n.artifact_type or "unknown").lower(),
             "_ts_dt": safe_parse_timestamp(ts),
         })
 
@@ -248,8 +243,6 @@ def _build_time_buckets(
     if current:
         buckets.append(current)
 
-    # Also add items with no timestamp to every bucket (they may still
-    # match via entity / source / event signals).
     no_ts = [i for i, item in enumerate(items) if item.get("_ts_dt") is None]
     if no_ts:
         for bucket in buckets:
@@ -328,7 +321,6 @@ def correlate_case_artifacts(
     w = weights or DEFAULT_WEIGHTS
     win_sec = time_window_seconds or DEFAULT_TIME_WINDOW
 
-    # Clear previous correlation snapshots for this case to rebuild fresh
     db.query(ArtifactCorrelation).filter(ArtifactCorrelation.case_id == case_id).delete()
 
     items = _collect_artifacts(case_id, db)
@@ -341,15 +333,13 @@ def correlate_case_artifacts(
     entity_index = _build_entity_index(items)
     time_buckets = _build_time_buckets(items, win_sec)
 
-    # Map bucket index → set for fast membership tests
     bucket_sets = [set(b) for b in time_buckets]
 
     # ── Candidate pair generation ──────────────────────────────────────
     seen_pairs: set[tuple[str, str]] = set()
     candidates: list[tuple[int, int]] = []
 
-    # 1) Entity-matching candidates (high signal, cheap)
-    for _ev, indices in entity_index.items():
+    for indices in entity_index.values():
         for i in range(len(indices)):
             for j in range(i + 1, len(indices)):
                 pair = (items[indices[i]]["id"], items[indices[j]]["id"])
@@ -357,7 +347,6 @@ def correlate_case_artifacts(
                     seen_pairs.add(pair)
                     candidates.append((indices[i], indices[j]))
 
-    # 2) Time-bucket neighbours (within the same time bucket)
     for bucket in bucket_sets:
         bucket_list = sorted(bucket)
         for i in range(len(bucket_list)):
@@ -395,7 +384,6 @@ def correlate_case_artifacts(
                 created_correlations.extend(batch)
                 batch = []
 
-    # Flush remaining
     if batch:
         db.add_all(batch)
         db.flush()
