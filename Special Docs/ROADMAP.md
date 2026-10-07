@@ -232,20 +232,20 @@ Build one Extractor per evidence type. Each takes a raw `EvidenceItem` and produ
 
 ## Phase 9 — Hardening & polish
 
-- [ ] Full security pass: parameterized queries everywhere, no evidence content in logs, session checks on every route **[SEC]**
-- [ ] Performance: move Extractor/Analyzer runs to background tasks so upload doesn't block on full analysis (per `design.md` Section 9)
-- [ ] Error handling pass: every user-facing failure gives a clear message, not a raw stack trace
-- [ ] UI polish: loading states for upload/analysis/report generation, responsive layout check (Bootstrap)
-- [ ] End-to-end test: upload evidence → run analysis → view timeline → query assistant → generate report, on one synthetic case
+- [x] Full security pass: parameterized queries everywhere, no evidence content in logs, session checks on every route **[SEC]**
+- [x] Performance: move Extractor/Analyzer runs to background tasks so upload doesn't block on full analysis (per `design.md` Section 9)
+- [x] Error handling pass: every user-facing failure gives a clear message, not a raw stack trace
+- [x] UI polish: loading states for upload/analysis/report generation, responsive layout check (Bootstrap)
+- [x] End-to-end test: upload evidence → run analysis → view timeline → query assistant → generate report, on one synthetic case
 
 ---
 
 ## Phase 10 — Documentation & demo prep
 
-- [ ] Update `PRD.md`/`design.md` if implementation diverged from the original plan
-- [ ] Write a short setup/run README (env setup, how to launch backend + frontend, sample data)
-- [ ] Prepare a demo case with representative synthetic evidence (no real/sensitive data)
-- [ ] Dry-run the SIH/major-project demo end to end against the checklist in Phase 9's E2E test
+- [x] Update `PRD.md`/`design.md` if implementation diverged from the original plan
+- [x] Write a short setup/run README (env setup, how to launch backend + frontend, sample data)
+- [x] Prepare a demo case with representative synthetic evidence (no real/sensitive data)
+- [x] Dry-run the SIH/major-project demo end to end against the checklist in Phase 9's E2E test
 
 ---
 

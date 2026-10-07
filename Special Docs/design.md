@@ -59,19 +59,13 @@ The Report module sits alongside the AI Engine and reads its outputs (artifacts,
 - Report viewer/export screen
 
 ### 3.2 Backend (FastAPI)
-Routers, one per functional area (per `CLAUDE.md` Section 6):
+The backend architecture has expanded to **21 modular routers** (handling 72+ endpoints) rather than the initial 7. Key functional areas include:
 
-| Router | Responsibilities |
-|---|---|
-| `cases` | create/list/get investigation cases |
-| `evidence` | upload, list, validate, hash evidence files |
-| `analysis` | trigger/monitor AI Engine runs on a case |
-| `timeline` | fetch reconstructed timeline for a case |
-| `reports` | generate/fetch/export the forensic report |
-| `assistant` | NLP/LLM Q&A over a case's evidence |
-| `auth` | investigator login/session (see Section 8) |
+- **Core Case & Evidence**: `cases`, `evidence`, `artifacts`, `browser`, `network`, `forensic_records`
+- **Analysis & AI**: `analysis`, `correlation`, `timeline`, `intelligence`, `chat`, `evaluation`, `model_management`
+- **System & Admin**: `auth`, `users`, `admin`, `jobs`, `reports`, `settings`, `system`, `assets`
 
-Each router calls a corresponding **service** module (`services/evidence_service.py`, etc.) that contains the actual logic; routers stay thin (parse request → call service → shape response).
+Each router calls a corresponding **service** module (e.g., in `services/`) that contains the actual logic; routers stay thin (parse request → call service → shape response).
 
 ### 3.3 AI Engine
 - **Extractor** — per-evidence-type parsers (log parser, browser-history parser, metadata/EXIF reader, memory-artifact reader, network-log parser) that normalize raw evidence into a common `Artifact` structure.
@@ -88,62 +82,32 @@ Formats AI Engine output (artifacts, correlations, timeline, threat score, expla
 
 ## 4. Data model (SQLite)
 
-```
-Case
-├── id (PK)
-├── title
-├── investigator
-├── created_at
-├── status            -- open | analyzing | reported | closed
+The data model has evolved to include **15 SQLAlchemy ORM models** with cascade integrity. The core tables structure is conceptually:
 
-EvidenceItem
-├── id (PK)
-├── case_id (FK → Case)
-├── original_filename
-├── evidence_type      -- log | browser_history | document | image | memory | network
-├── file_path           -- pointer into read-only file store
-├── sha256_hash
-├── uploaded_at
-├── ingestion_status    -- pending | parsed | failed
+```text
+Core Entities:
+- User (investigator accounts and RBAC)
+- Case (investigation containers)
+- EvidenceItem (uploaded files, hashes, status)
 
-Artifact
-├── id (PK)
-├── evidence_item_id (FK → EvidenceItem)
-├── artifact_type       -- e.g. login_event, url_visit, file_access, network_connection
-├── timestamp
-├── raw_fields (JSON)   -- normalized parsed fields
-├── extracted_at
+Artifact Subtypes:
+- ExtractedArtifact (base entity for parsed evidence)
+- BrowserArtifact (specialized for web history)
+- NetworkArtifact (specialized for PCAP/net logs)
+- ForensicRecord (system logs, event records)
 
-Finding
-├── id (PK)
-├── case_id (FK → Case)
-├── finding_type        -- anomaly | suspicious_pattern | correlation
-├── related_artifact_ids (JSON array of Artifact.id)
-├── confidence_score     -- 0.0–1.0, REQUIRED
-├── explanation           -- human-readable justification, REQUIRED
-├── created_at
+Analysis & Results:
+- Finding (AI-flagged anomalies with confidence/explanation)
+- ArtifactCorrelation (graph edges linking artifacts)
+- TimelineEvent (chronological reconstruction)
+- ThreatScore (case-level risk metric)
+- Report (generated output)
 
-TimelineEvent
-├── id (PK)
-├── case_id (FK → Case)
-├── timestamp
-├── description
-├── source_artifact_ids (JSON array)
-├── confidence_score
-
-ThreatScore
-├── id (PK)
-├── case_id (FK → Case)
-├── score                -- 0–100
-├── risk_level            -- low | medium | high | critical
-├── contributing_findings (JSON array of Finding.id)
-├── computed_at
-
-Report
-├── id (PK)
-├── case_id (FK → Case)
-├── generated_at
-├── content (JSON or rendered HTML/PDF path)
+System & Orchestration:
+- ForensicJob (async pipeline tracking)
+- Intelligence (threat intel lookups)
+- ModelRegistry & ModelEvaluation (AI model lifecycle)
+- SystemSetting (global configuration)
 ```
 
 **Rules enforced by this schema:**
@@ -175,6 +139,8 @@ Every function in Analyzer/Correlator that produces a `Finding` or `TimelineEven
 ---
 
 ## 7. API surface (representative endpoints)
+
+*Note: The platform exposes 72 endpoints across 21 routers. Below is a representative sample of the core flow. See `http://127.0.0.1:8000/docs` (Swagger UI) for the complete, live specification.*
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -210,13 +176,12 @@ All request/response bodies use `pydantic` schemas (per `CLAUDE.md` Section 6) �
 
 ---
 
-## 10. Open design questions (flag before implementing)
+## 10. Resolved design decisions (Updated)
 
-- Exact model choices for the Analyzer (which anomaly-detection algorithm(s) from Scikit-learn) and for the LLM (which Hugging Face model, and whether it runs fully local or via an API) — not yet finalized in the PRD.
-- Export format(s) for the final report (PDF vs. HTML vs. both).
-- Whether the AI assistant chat is stateless per-query or maintains conversation history within a case session.
-
-These should be resolved in `ROADMAP.md` planning or with the team/guide before the corresponding module is built — per `CLAUDE.md` Section 10, ask rather than assume on anything touching the AI Engine's core algorithms.
+- **Exact model choices**: Analyzer uses Scikit-Learn Isolation Forest for outlier analysis. NLP/LLM uses a configurable API provider (Gemini, OpenAI, Ollama) along with a local fallback using `Snowflake/snowflake-arctic-embed-xs` for semantic search.
+- **Export format(s)**: Reports are exported as both PDF and DOCX (using `reportlab` and `python-docx`).
+- **Chat statefulness**: The AI assistant chat is stateless per-query, relying strictly on the grounded evidence context without persisting conversation history.
+- **API divergence**: The final implemented endpoints diverge slightly from the original spec (e.g., `/api/chat` instead of `/assistant/{case_id}/query`). See `README.md` and the live Swagger documentation (`/docs`) for the final deployed API surface.
 
 
 ---
