@@ -166,6 +166,11 @@ AI Digital Forensics Assistant/
 ├── README.md                    # Platform documentation
 ├── requirements.txt             # Root requirements pointer (-r backend/requirements.txt)
 │
+├── Special Docs/                # Project documentation, design, and roadmaps
+│   ├── PRD.md                   # Product Requirements Document
+│   ├── ROADMAP.md               # Future development plans
+│   └── design.md                # System design and architecture details
+│
 ├── backend/                     # Backend application root
 │   ├── Dockerfile               # Production container definition (Python 3.11-slim)
 │   ├── pytest.ini               # Pytest configuration & test markers
