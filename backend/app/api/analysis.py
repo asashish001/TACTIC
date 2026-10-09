@@ -16,8 +16,10 @@ from app.database.session import get_db
 from app.models.case import Case
 from app.models.evidence import Evidence
 from app.models.finding import Finding
+from app.models.extracted_artifact import ExtractedArtifact
 from app.models.user import User
 from app.schemas.finding import FindingResponse, FindingReviewRequest
+from app.schemas.artifact import ExtractedArtifactResponse
 from app.services.integrity_verification import (
     evidence_disk_path,
     verify_case_evidence_integrity,
@@ -142,10 +144,25 @@ def trigger_analysis(request: Request,
                 ))
                 continue
             elif latest_job.status == "COMPLETED":
+                # Rebuild correlations silently in the background
+                def run_rebuild():
+                    from app.database.session import SessionLocal
+                    from app.services.correlation_engine import correlate_case_artifacts
+                    from app.services.settings_service import get_correlation_config
+                    with SessionLocal() as bg_db:
+                        cfg = get_correlation_config(bg_db)
+                        correlate_case_artifacts(
+                            resolved_case_id,
+                            bg_db,
+                            cfg["weights"],
+                            cfg["time_window_seconds"]
+                        )
+                
+                background_tasks.add_task(run_rebuild)
                 queued_jobs.append(JobQueuedResponse(
                     job_id=str(latest_job.id),
                     status=latest_job.status,
-                    message=f"Forensic analysis already completed for evidence '{ev.filename}'.",
+                    message=f"Forensic analysis already completed. Rebuilding correlation graph for evidence '{ev.filename}'.",
                     current_stage=latest_job.current_stage,
                     progress_percent=latest_job.progress_percent
                 ))
@@ -277,3 +294,25 @@ def get_review_summary(request: Request,
         "review_ready_for_report": sum(1 for f in findings if f.review_status == "approved"),
     }
     return summary
+
+
+@router.get("/artifacts/{case_id}", response_model=list[ExtractedArtifactResponse])
+@limiter.limit(RATE_LIMIT_READ)
+def list_extracted_artifacts(request: Request,
+    case_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all extracted artifacts for a specific case."""
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    require_case_access(case, current_user)
+    
+    artifacts = (
+        db.query(ExtractedArtifact)
+        .filter(ExtractedArtifact.case_id == case.id)
+        .order_by(ExtractedArtifact.extracted_at.desc())
+        .all()
+    )
+    return artifacts

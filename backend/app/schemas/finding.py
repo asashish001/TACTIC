@@ -22,6 +22,7 @@ class FindingResponse(FindingBase):
     id: int
     case_id: int
     evidence_id: int | None
+    evidence_filename: str | None = None
     details: dict
     review_status: str = "pending"
     reviewed_by_id: int | None = None

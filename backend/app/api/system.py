@@ -50,13 +50,21 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     alerts = []
     for f in recent_findings:
         alerts.append({
+            "id": f.id,
+            "title": f.title,
             "severity": f.severity,
             "time": f.created_at.strftime("%I:%M %p"),
             "source": f.threat_category or "System",
             "description": f.title,
-            "status": "Investigating"
+            "full_description": f.description,
+            "status": "Investigating",
+            "threat_category": f.threat_category,
+            "confidence": f.confidence,
+            "reason": f.reason,
+            "recommendation": f.recommendation,
+            "details": f.details,
+            "evidence_filename": f.evidence.filename if f.evidence else "Unknown Source"
         })
-        
     return {
         "stats": {
             "active_cases": cases_count,

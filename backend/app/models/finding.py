@@ -1,5 +1,10 @@
 import datetime
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from app.models.case import Case
+    from app.models.evidence import Evidence
+    from app.models.user import User
 from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,3 +35,7 @@ class Finding(Base):
     case: Mapped["Case"] = relationship("Case", back_populates="findings")
     evidence: Mapped["Evidence"] = relationship("Evidence", back_populates="findings")
     reviewed_by: Mapped["User"] = relationship("User", foreign_keys=[reviewed_by_id])
+
+    @property
+    def evidence_filename(self) -> str | None:
+        return self.evidence.filename if self.evidence else None

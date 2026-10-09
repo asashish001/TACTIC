@@ -82,13 +82,17 @@ def get_system_settings(db: Session) -> dict[str, Any]:
     tz_setting = db.query(SystemSetting).filter(SystemSetting.key == "default_timezone").first()
     default_tz = tz_setting.value if tz_setting and tz_setting.value else DEFAULT_TIMEZONE
 
+    ccc_setting = db.query(SystemSetting).filter(SystemSetting.key == "cross_case_correlation").first()
+    cross_case = ccc_setting.value == "True" if ccc_setting else True
+
     return {
         "anomaly_threshold": round(threshold, 4),
         "anomaly_threshold_default": DEFAULT_ANOMALY_THRESHOLD,
         "anomaly_threshold_label": f"Configurable Default ({DEFAULT_ANOMALY_THRESHOLD:.2f})",
         "default_timezone": default_tz,
         "correlation_weights": corr_cfg["weights"],
-        "correlation_time_window_seconds": corr_cfg["time_window_seconds"]
+        "correlation_time_window_seconds": corr_cfg["time_window_seconds"],
+        "cross_case_correlation": cross_case
     }
 
 
@@ -195,6 +199,20 @@ def update_system_settings(
             setting.value = str(win_val)
 
         audit_details["new_correlation_time_window_seconds"] = win_val
+
+    if "cross_case_correlation" in payload and payload["cross_case_correlation"] is not None:
+        ccc_val = str(bool(payload["cross_case_correlation"]))
+        setting = db.query(SystemSetting).filter(SystemSetting.key == "cross_case_correlation").first()
+        if not setting:
+            setting = SystemSetting(
+                key="cross_case_correlation",
+                value=ccc_val,
+                description="Enable correlation across multiple cases."
+            )
+            db.add(setting)
+        else:
+            setting.value = ccc_val
+        audit_details["new_cross_case_correlation"] = ccc_val
 
     db.flush()
 

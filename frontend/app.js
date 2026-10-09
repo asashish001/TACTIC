@@ -3,7 +3,33 @@ if (typeof lucide !== 'undefined') {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  
+
+  window.showToast = function (message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    let icon = 'info';
+    if (type === 'success') icon = 'check-circle';
+    if (type === 'error') icon = 'alert-circle';
+
+    toast.innerHTML = `
+      <i data-lucide="${icon}" style="width: 20px; height: 20px;"></i>
+      <div class="toast-content">${message}</div>
+    `;
+
+    container.appendChild(toast);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 5000);
+  };
+
   let jwtToken = null;
   async function api(method, url, data) {
     if (!jwtToken) {
@@ -33,20 +59,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const views = document.querySelectorAll('.view');
   const noCaseOverlay = document.getElementById('no-case-overlay');
 
-  window.checkCaseSelection = function(viewName) {
-      if (!noCaseOverlay) return;
-      const requiresCase = ['dashboard', 'evidence', 'analysis', 'timeline', 'network', 'chat', 'reports'];
-      if (requiresCase.includes(viewName) && !currentCaseId) {
-          noCaseOverlay.style.display = 'flex';
-      } else {
-          noCaseOverlay.style.display = 'none';
-      }
+  window.checkCaseSelection = function (viewName) {
+    if (!noCaseOverlay) return;
+    const requiresCase = ['dashboard', 'evidence', 'analysis', 'timeline', 'network', 'chat', 'reports'];
+    if (requiresCase.includes(viewName) && !currentCaseId) {
+      noCaseOverlay.style.display = 'flex';
+    } else {
+      noCaseOverlay.style.display = 'none';
+    }
   };
 
   navItems.forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
-      
+
       navItems.forEach(nav => nav.classList.remove('active'));
       views.forEach(view => {
         view.classList.add('hidden');
@@ -57,26 +83,26 @@ document.addEventListener('DOMContentLoaded', () => {
       item.classList.add('active');
       const viewName = item.getAttribute('data-view');
       const viewId = `view-${viewName}`;
-      
+
       window.checkCaseSelection(viewName);
-      
+
       const targetView = document.getElementById(viewId);
       if (targetView) {
         targetView.classList.remove('hidden');
         targetView.classList.add('animate-fade-in');
-        
+
         if (item.getAttribute('data-view') === 'chat') {
-            targetView.style.display = 'flex';
+          targetView.style.display = 'flex';
         }
-        
+
         if (item.getAttribute('data-view') === 'network' && window.cyInstance) {
-            setTimeout(() => {
-                window.cyInstance.resize();
-                window.cyInstance.layout({ 
-                    name: 'concentric', padding: 50, animate: true, 
-                    spacingFactor: 1.5, minNodeSpacing: 50 
-                }).run();
-            }, 50);
+          setTimeout(() => {
+            window.cyInstance.resize();
+            window.cyInstance.layout({
+              name: 'concentric', padding: 50, animate: true,
+              spacingFactor: 1.5, minNodeSpacing: 50
+            }).run();
+          }, 50);
         }
       }
     });
@@ -87,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch('/api/dashboard');
       if (!response.ok) throw new Error('Failed to fetch dashboard data');
       const data = await response.json();
-      
+
       if (document.getElementById('stat-active-threats')) {
         document.getElementById('stat-active-threats').textContent = data.stats.active_threats.toLocaleString();
         document.getElementById('stat-processed-artifacts').textContent = data.stats.processed_artifacts.toLocaleString();
@@ -101,13 +127,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.recent_alerts && data.recent_alerts.length > 0) {
           data.recent_alerts.forEach(alert => {
             const tr = document.createElement('tr');
-            
+
             let badgeClass = 'success';
             const sev = alert.severity.toLowerCase();
             if (sev === 'critical') badgeClass = 'danger';
             else if (sev === 'high') badgeClass = 'danger';
             else if (sev === 'medium') badgeClass = 'warning';
 
+            tr.style.cursor = 'pointer';
             tr.innerHTML = `
               <td><span class="badge ${badgeClass}">${alert.severity.toUpperCase()}</span></td>
               <td>${alert.time}</td>
@@ -115,6 +142,54 @@ document.addEventListener('DOMContentLoaded', () => {
               <td>${alert.description}</td>
               <td><span class="badge">${alert.status}</span></td>
             `;
+
+            tr.addEventListener('click', () => {
+              const modal = document.getElementById('finding-details-modal');
+              const content = document.getElementById('finding-details-content');
+              
+              if (!modal || !content) return;
+
+              let detailsHtml = '';
+              try {
+                const parsedDetails = typeof alert.details === 'string' ? JSON.parse(alert.details) : alert.details;
+                detailsHtml = `<pre style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; overflow-y: auto; max-height: 300px; font-size: 0.85rem;">${JSON.stringify(parsedDetails, null, 2)}</pre>`;
+              } catch (e) {
+                detailsHtml = `<div>${alert.details || 'None'}</div>`;
+              }
+
+              content.innerHTML = `
+                <div>
+                  <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Title</div>
+                  <div style="font-size: 1.1rem; font-weight: 600; color: white;">${alert.title || alert.description}</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Description & Reasoning</div>
+                  <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; line-height: 1.5; border: 1px solid rgba(255,255,255,0.05);">
+                    <p style="margin-bottom: 0.5rem; color: #38bdf8; font-weight: 600;">Evidence Source: ${alert.evidence_filename || 'Unknown Source'}</p>
+                    <p style="margin-bottom: 0.5rem;">${alert.full_description || alert.description || ''}</p>
+                    <p style="color: #94a3b8;">${alert.reason || ''}</p>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Recommendation</div>
+                  <div style="color: #cbd5e1; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; line-height: 1.5;">${alert.recommendation || 'No specific recommendation provided.'}</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Technical Details</div>
+                  ${detailsHtml}
+                </div>
+              `;
+
+              const modalContentContainer = modal.querySelector('.modal-content');
+              if (modalContentContainer) {
+                modalContentContainer.style.maxHeight = '70vh';
+                modalContentContainer.style.overflowY = 'auto';
+              }
+
+              modal.style.display = 'flex';
+              modal.classList.remove('hidden');
+            });
+
             tbody.appendChild(tr);
           });
         } else {
@@ -133,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnGenerateSummary = document.getElementById('btn-generate-summary');
   const summaryContainer = document.getElementById('dashboard-summary-container');
   const summaryText = document.getElementById('dashboard-summary-text');
-  
+
   if (btnGenerateSummary && summaryContainer && summaryText) {
     btnGenerateSummary.addEventListener('click', async () => {
       summaryContainer.classList.remove('hidden');
@@ -154,37 +229,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const globalCaseSelect = document.getElementById('global-case-select');
   window.allCases = [];
   let currentCaseId = localStorage.getItem('currentCaseId') || null;
-  
+
   function updateGlobalCaseSelector() {
     if (!globalCaseSelect) return;
     globalCaseSelect.innerHTML = '<option value="">-- No Case Selected --</option>';
     window.allCases.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = `${c.case_number} - ${c.name}`;
-        if (c.id == currentCaseId) opt.selected = true;
-        globalCaseSelect.appendChild(opt);
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.case_number} - ${c.name}`;
+      if (c.id == currentCaseId) opt.selected = true;
+      globalCaseSelect.appendChild(opt);
     });
   }
 
   if (globalCaseSelect) {
     globalCaseSelect.addEventListener('change', (e) => {
-        currentCaseId = e.target.value;
-        if (currentCaseId) {
-            localStorage.setItem('currentCaseId', currentCaseId);
-        } else {
-            localStorage.removeItem('currentCaseId');
-        }
-        
-        const activeNav = document.querySelector('.nav-item.active');
-        if (activeNav) window.checkCaseSelection(activeNav.getAttribute('data-view'));
+      currentCaseId = e.target.value;
+      if (currentCaseId) {
+        localStorage.setItem('currentCaseId', currentCaseId);
+      } else {
+        localStorage.removeItem('currentCaseId');
+      }
 
-        if (typeof loadEvidence === 'function') loadEvidence();
-        if (typeof loadAnalysisJobs === 'function') loadAnalysisJobs();
-        if (typeof loadAnalysisFindings === 'function') loadAnalysisFindings();
-        if (typeof loadTimeline === 'function') window.loadTimeline();
-        if (typeof loadNetworkGraph === 'function') window.loadNetworkGraph();
-        if (typeof loadReports === 'function') window.loadReports();
+      const activeNav = document.querySelector('.nav-item.active');
+      if (activeNav) window.checkCaseSelection(activeNav.getAttribute('data-view'));
+
+      if (typeof loadEvidence === 'function') loadEvidence();
+      if (typeof loadAnalysisJobs === 'function') loadAnalysisJobs();
+      if (typeof loadAnalysisFindings === 'function') loadAnalysisFindings();
+      if (typeof loadExtractedArtifacts === 'function') window.loadExtractedArtifacts();
+      if (typeof loadTimeline === 'function') window.loadTimeline();
+      if (typeof loadNetworkGraph === 'function') window.loadNetworkGraph();
+      if (typeof loadReports === 'function') window.loadReports();
     });
   }
 
@@ -204,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let statusClass = 'info';
         if (c.status && c.status.toLowerCase() === 'closed') statusClass = 'success';
         if (c.status && c.status.toLowerCase() === 'active') statusClass = 'danger';
-        
+
         const card = document.createElement('div');
         card.className = 'feature-card';
         card.innerHTML = `
@@ -230,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
         casesList.appendChild(card);
       });
       if (typeof lucide !== 'undefined') lucide.createIcons();
-      
+
       document.querySelectorAll('.btn-open-case').forEach(btn => {
         btn.addEventListener('click', (e) => {
           currentCaseId = e.target.closest('button').getAttribute('data-id');
@@ -241,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
           loadEvidence();
           if (typeof loadAnalysisJobs === 'function') loadAnalysisJobs();
           if (typeof loadAnalysisFindings === 'function') loadAnalysisFindings();
+          if (typeof loadExtractedArtifacts === 'function') window.loadExtractedArtifacts();
           if (typeof loadTimeline === 'function') window.loadTimeline();
           if (typeof loadNetworkGraph === 'function') window.loadNetworkGraph();
           if (typeof loadReports === 'function') window.loadReports();
@@ -248,13 +325,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       updateGlobalCaseSelector();
-      
+
       const activeNav = document.querySelector('.nav-item.active');
       if (activeNav) window.checkCaseSelection(activeNav.getAttribute('data-view'));
-      
+
       loadEvidence();
       if (typeof loadAnalysisJobs === 'function') loadAnalysisJobs();
       if (typeof loadAnalysisFindings === 'function') loadAnalysisFindings();
+      if (typeof loadExtractedArtifacts === 'function') window.loadExtractedArtifacts();
       if (typeof loadTimeline === 'function') window.loadTimeline();
       if (typeof loadNetworkGraph === 'function') window.loadNetworkGraph();
       if (typeof loadReports === 'function') window.loadReports();
@@ -311,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadCases(); // Refresh list
       } catch (err) {
         console.error(err);
-        alert('Failed to create case: ' + err.message);
+        window.showToast('Failed to create case: ' + err.message, 'error');
       } finally {
         btnSubmit.textContent = 'Create Case';
         btnSubmit.disabled = false;
@@ -320,6 +398,63 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const evidenceList = document.getElementById('evidence-list');
+  if (evidenceList) {
+    evidenceList.addEventListener('click', async (e) => {
+      const link = e.target.closest('.evidence-link');
+      if (link) {
+        e.preventDefault();
+        const id = link.getAttribute('data-id');
+        const filename = link.getAttribute('data-filename');
+
+        const newWindow = window.open('', '_blank');
+        if (newWindow) {
+          newWindow.document.write('<html><head><title>' + filename + '</title></head><body style="font-family: monospace; white-space: pre-wrap; word-wrap: break-word;">Loading file...</body></html>');
+        }
+
+        try {
+          const response = await fetch(`/api/evidence/download/${id}`, {
+            headers: { 'Authorization': `Bearer ${jwtToken}` }
+          });
+          if (!response.ok) throw new Error('Failed to download');
+
+          const ext = filename.split('.').pop().toLowerCase();
+          const textExtensions = ['csv', 'txt', 'log', 'md', 'json', 'py', 'js', 'xml', 'ini', 'cfg'];
+
+          if (textExtensions.includes(ext)) {
+            const text = await response.text();
+            if (newWindow) {
+              newWindow.document.open();
+              newWindow.document.write('<html><head><title>' + filename + '</title></head><body style="font-family: monospace; white-space: pre-wrap; word-wrap: break-word;">' + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</body></html>');
+              newWindow.document.close();
+            }
+          } else {
+            // Fallback to blob for images/pdf etc.
+            let blob = await response.blob();
+            let mimeType = 'application/octet-stream';
+            if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
+              mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+            } else if (ext === 'pdf') {
+              mimeType = 'application/pdf';
+            }
+            blob = new Blob([blob], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            if (newWindow) {
+              newWindow.location.href = url;
+            }
+            setTimeout(() => window.URL.revokeObjectURL(url), 15000);
+          }
+        } catch (err) {
+          if (newWindow) {
+            newWindow.document.open();
+            newWindow.document.write('Error opening file: ' + err.message);
+            newWindow.document.close();
+          }
+          console.error('Error opening file:', err);
+        }
+      }
+    });
+  }
+
   function formatBytes(bytes) {
     if (bytes === 0 || !bytes) return '0 B';
     const k = 1024, sizes = ['B', 'KB', 'MB', 'GB', 'TB'], i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -328,10 +463,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadEvidence() {
     if (!evidenceList) return;
-    
+
     if (!currentCaseId) {
-        evidenceList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Please create a case first.</td></tr>';
-        return;
+      evidenceList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Please create a case first.</td></tr>';
+      return;
     }
 
     evidenceList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading evidence...</td></tr>';
@@ -347,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${ev.id}</td>
-          <td>${ev.filename}</td>
+          <td><a href="#" class="evidence-link" data-id="${ev.id}" data-filename="${ev.filename}" style="color: var(--primary); text-decoration: underline; cursor: pointer;">${ev.filename}</a></td>
           <td>${ev.detected_mime || ev.extension || 'Unknown'}</td>
           <td>${formatBytes(ev.file_size)}</td>
           <td><span class="badge success">Processed</span></td>
@@ -402,16 +537,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     uploadEvidenceForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const fileInput = document.getElementById('evidence-file');
       if (!fileInput.files.length) return;
-      
+
       const caseIdInput = document.getElementById('upload-case-id');
       if (!caseIdInput) {
-        alert('Please create a case first.');
+        window.showToast('Please create a case first.', 'error');
         return;
       }
-      
+
       const btnSubmit = document.getElementById('btn-submit-upload');
       btnSubmit.textContent = 'Uploading...';
       btnSubmit.disabled = true;
@@ -426,22 +561,22 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Authorization': `Bearer ${jwtToken}` },
           body: formData
         });
-        
+
         if (!response.ok) {
           const errText = await response.text();
           throw new Error(response.statusText + ' - ' + errText);
         }
-        
+
         uploadModal.style.display = 'none';
         uploadModal.classList.add('hidden');
         uploadEvidenceForm.reset();
-        
+
         currentCaseId = caseIdInput.value;
         localStorage.setItem('currentCaseId', currentCaseId);
         loadEvidence();
       } catch (err) {
         console.error(err);
-        alert('Upload failed: ' + err.message);
+        window.showToast('Upload failed: ' + err.message, 'error');
       } finally {
         btnSubmit.textContent = 'Upload File';
         btnSubmit.disabled = false;
@@ -456,9 +591,9 @@ document.addEventListener('DOMContentLoaded', () => {
   async function sendMessage() {
     const text = chatInput.value.trim();
     if (!text) return;
-    
+
     if (!currentCaseId) {
-      alert("Please open a case before using the AI Chat.");
+      window.showToast("Please open a case before using the AI Chat.", 'error');
       return;
     }
 
@@ -485,12 +620,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const response = await api('POST', '/api/chat', { case_id: parseInt(currentCaseId, 10), question: text });
       loadingMsg.remove();
-      
+
       const aiMsg = document.createElement('div');
       aiMsg.className = 'chat-msg ai-msg animate-fade-in';
       const formattedAnswer = (response.answer || '').replace(/\n/g, '<br>');
       const meta = response.safeguards || {};
-      
+
       aiMsg.innerHTML = `
         <div class="msg-avatar"><i data-lucide="message-square" style="width:20px;height:20px;"></i></div>
         <div class="msg-bubble">
@@ -503,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
       chatMessages.appendChild(aiMsg);
       if (typeof lucide !== 'undefined') lucide.createIcons();
       chatMessages.scrollTop = chatMessages.scrollHeight;
-      
+
     } catch (err) {
       console.error(err);
       loadingMsg.remove();
@@ -529,10 +664,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRunAnalysis = document.getElementById('btn-run-analysis');
   const jobsList = document.getElementById('analysis-jobs-list');
   const findingsList = document.getElementById('analysis-findings-list');
-  
+
   let analysisPollInterval = null;
 
-  window.loadAnalysisJobs = async function() {
+  window.loadAnalysisJobs = async function () {
     if (!jobsList || !currentCaseId) return;
     try {
       const jobs = await api('GET', `/api/jobs/case/${currentCaseId}`);
@@ -540,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
         jobsList.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No analysis jobs running.</td></tr>';
         return;
       }
-      
+
       jobsList.innerHTML = '';
       let isRunning = false;
       jobs.forEach(job => {
@@ -548,7 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let statusClass = 'info';
         if (job.status === 'COMPLETED') statusClass = 'success';
         if (job.status === 'FAILED') statusClass = 'danger';
-        
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${job.evidence_id || 'Case-wide'}</td>
@@ -558,7 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         jobsList.appendChild(tr);
       });
-      
+
       if (!isRunning && analysisPollInterval) {
         clearInterval(analysisPollInterval);
         analysisPollInterval = null;
@@ -569,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  window.loadAnalysisFindings = async function() {
+  window.loadAnalysisFindings = async function () {
     if (!findingsList || !currentCaseId) return;
     try {
       const findings = await api('GET', `/api/analyze/findings/${currentCaseId}`);
@@ -577,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
         findingsList.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No findings discovered yet.</td></tr>';
         return;
       }
-      
+
       findingsList.innerHTML = '';
       findings.forEach(f => {
         let sevClass = 'info';
@@ -585,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sev === 'critical' || sev === 'high') sevClass = 'danger';
         if (sev === 'medium') sevClass = 'warning';
         if (sev === 'low') sevClass = 'success';
-        
+
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.innerHTML = `
@@ -597,7 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.addEventListener('click', () => {
           const modal = document.getElementById('finding-details-modal');
           const content = document.getElementById('finding-details-content');
-          
+
           let detailsHtml = '';
           try {
             const parsedDetails = typeof f.details === 'string' ? JSON.parse(f.details) : f.details;
@@ -614,6 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div>
               <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Description & Reasoning</div>
               <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; line-height: 1.5; border: 1px solid rgba(255,255,255,0.05);">
+                <p style="margin-bottom: 0.5rem; color: #38bdf8; font-weight: 600;">Evidence Source: ${f.evidence_filename || 'Unknown Source'}</p>
                 <p style="margin-bottom: 0.5rem;">${f.description || ''}</p>
                 <p style="color: #94a3b8;">${f.reason || ''}</p>
               </div>
@@ -627,14 +763,14 @@ document.addEventListener('DOMContentLoaded', () => {
               ${detailsHtml}
             </div>
           `;
-          
+
           const modalContentContainer = modal.querySelector('.modal-content');
           if (modalContentContainer) {
-              modalContentContainer.style.maxHeight = '70vh';
-              modalContentContainer.style.overflowY = 'auto';
-              modalContentContainer.style.margin = '5vh auto';
+            modalContentContainer.style.maxHeight = '70vh';
+            modalContentContainer.style.overflowY = 'auto';
+            modalContentContainer.style.margin = '5vh auto';
           }
-          
+
           modal.style.display = 'flex';
           modal.classList.remove('hidden');
         });
@@ -645,22 +781,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const artifactsList = document.getElementById('extracted-artifacts-list');
+  window.loadExtractedArtifacts = async function () {
+    if (!artifactsList || !currentCaseId) return;
+    try {
+      const artifacts = await api('GET', `/api/analyze/artifacts/${currentCaseId}`);
+      if (!artifacts || artifacts.length === 0) {
+        artifactsList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No artifacts extracted yet.</td></tr>';
+        return;
+      }
+
+      artifactsList.innerHTML = '';
+      artifacts.forEach(a => {
+        const tr = document.createElement('tr');
+        const extractedDate = new Date(a.extracted_at).toLocaleString();
+        
+        let valDisplay = a.value;
+        if (valDisplay && valDisplay.length > 100) {
+            valDisplay = valDisplay.substring(0, 100) + '...';
+        }
+
+        const safeVal = valDisplay ? valDisplay.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+        const safeFullVal = a.value ? a.value.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+
+        tr.innerHTML = `
+          <td>${a.evidence_filename || 'Case-wide'}</td>
+          <td><span class="badge info">${a.artifact_type}</span></td>
+          <td style="word-break: break-all;" title="${safeFullVal}">${safeVal}</td>
+          <td>${a.extractor}</td>
+          <td style="color: var(--text-muted); font-size: 0.85rem;">${extractedDate}</td>
+        `;
+        artifactsList.appendChild(tr);
+      });
+    } catch (e) {
+      console.error('Failed to load extracted artifacts', e);
+      artifactsList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger);">Failed to load artifacts.</td></tr>';
+    }
+  };
+
+  const btnRefreshArtifacts = document.getElementById('btn-refresh-artifacts');
+  if (btnRefreshArtifacts) {
+    btnRefreshArtifacts.addEventListener('click', () => {
+      window.loadExtractedArtifacts();
+    });
+  }
+
   if (btnRunAnalysis) {
     btnRunAnalysis.addEventListener('click', async () => {
       if (!currentCaseId) {
-        alert('Please create and open a case first.');
+        window.showToast('Please create and open a case first.', 'error');
         return;
       }
-      
+
       let btnIcon = btnRunAnalysis.querySelector('i') || btnRunAnalysis.querySelector('svg');
       btnRunAnalysis.disabled = true;
       if (btnIcon) {
-          const newIcon = document.createElement('i');
-          newIcon.setAttribute('data-lucide', 'loader');
-          newIcon.style.width = '18px';
-          newIcon.style.height = '18px';
-          btnIcon.replaceWith(newIcon);
-          if (typeof lucide !== 'undefined') lucide.createIcons();
+        const newIcon = document.createElement('i');
+        newIcon.setAttribute('data-lucide', 'loader');
+        newIcon.style.width = '18px';
+        newIcon.style.height = '18px';
+        btnIcon.replaceWith(newIcon);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       }
 
       try {
@@ -671,17 +852,17 @@ document.addEventListener('DOMContentLoaded', () => {
         window.loadAnalysisJobs();
       } catch (err) {
         console.error(err);
-        alert('Failed to trigger analysis: ' + err.message);
+        window.showToast('Failed to trigger analysis: ' + err.message, 'error');
       } finally {
         btnRunAnalysis.disabled = false;
         btnIcon = btnRunAnalysis.querySelector('i') || btnRunAnalysis.querySelector('svg');
         if (btnIcon) {
-            const newIcon = document.createElement('i');
-            newIcon.setAttribute('data-lucide', 'zap');
-            newIcon.style.width = '18px';
-            newIcon.style.height = '18px';
-            btnIcon.replaceWith(newIcon);
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+          const newIcon = document.createElement('i');
+          newIcon.setAttribute('data-lucide', 'zap');
+          newIcon.style.width = '18px';
+          newIcon.style.height = '18px';
+          btnIcon.replaceWith(newIcon);
+          if (typeof lucide !== 'undefined') lucide.createIcons();
         }
       }
     });
@@ -689,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const timelineList = document.getElementById('timeline-events-list');
 
-  window.loadTimeline = async function() {
+  window.loadTimeline = async function () {
     if (!timelineList || !currentCaseId) return;
     try {
       timelineList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading timeline...</td></tr>';
@@ -698,18 +879,18 @@ document.addEventListener('DOMContentLoaded', () => {
         timelineList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No timeline events found.</td></tr>';
         return;
       }
-      
+
       timelineList.innerHTML = '';
       data.events.forEach(evt => {
         let badgeClass = 'info';
         if (evt.priority === 'high' || evt.priority === 'critical') badgeClass = 'danger';
         if (evt.priority === 'medium') badgeClass = 'warning';
         if (evt.priority === 'low') badgeClass = 'success';
-        
+
         const rowStyle = evt.is_suspicious ? 'background: rgba(239, 68, 68, 0.1);' : '';
         const tr = document.createElement('tr');
         if (rowStyle) tr.style = rowStyle;
-        
+
         tr.innerHTML = `
           <td style="font-family: monospace; font-size: 0.85rem;">${evt.display_timestamp}</td>
           <td>${evt.evidence_source || 'Unknown'}</td>
@@ -725,7 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  window.loadNetworkGraph = async function() {
+  window.loadNetworkGraph = async function () {
     if (!document.getElementById('cy') || !currentCaseId) return;
     try {
       const artifacts = await api('GET', `/api/network/cases/${currentCaseId}/artifacts`);
@@ -733,27 +914,27 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('cy').innerHTML = '<div style="color:var(--text-muted); text-align:center; padding-top: 2rem;">No network artifacts found for this case.</div>';
         return;
       }
-      
+
       const elements = [];
       const nodes = new Set();
-      
+
       artifacts.forEach(art => {
-          const src = art.source_ip || art.value;
-          const dst = art.destination_ip || art.domain;
-          
-          if (src && !nodes.has(src)) {
-              nodes.add(src);
-              elements.push({ data: { id: src, label: src, type: 'Internal IP' } });
-          }
-          if (dst && !nodes.has(dst)) {
-              nodes.add(dst);
-              elements.push({ data: { id: dst, label: dst, type: 'External IP' } });
-          }
-          if (src && dst) {
-              elements.push({ data: { source: src, target: dst, label: art.protocol || art.artifact_type } });
-          }
+        const src = art.source_ip || art.value;
+        const dst = art.destination_ip || art.domain;
+
+        if (src && !nodes.has(src)) {
+          nodes.add(src);
+          elements.push({ data: { id: src, label: src, type: 'Internal IP' } });
+        }
+        if (dst && !nodes.has(dst)) {
+          nodes.add(dst);
+          elements.push({ data: { id: dst, label: dst, type: 'External IP' } });
+        }
+        if (src && dst) {
+          elements.push({ data: { source: src, target: dst, label: art.protocol || art.artifact_type } });
+        }
       });
-      
+
       if (typeof cytoscape !== 'undefined') {
         window.cyInstance = cytoscape({
           container: document.getElementById('cy'),
@@ -762,7 +943,7 @@ document.addEventListener('DOMContentLoaded', () => {
             {
               selector: 'node',
               style: {
-                'background-color': function(ele) { return ele.data('type') === 'External IP' ? '#ef4444' : '#0ea5e9'; },
+                'background-color': function (ele) { return ele.data('type') === 'External IP' ? '#ef4444' : '#0ea5e9'; },
                 'label': 'data(label)',
                 'color': '#e2e8f0',
                 'text-valign': 'bottom',
@@ -774,7 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'height': '35px',
                 'border-width': '2px',
                 'border-color': 'rgba(255, 255, 255, 0.4)',
-                'underlay-color': function(ele) { return ele.data('type') === 'External IP' ? '#ef4444' : '#0ea5e9'; },
+                'underlay-color': function (ele) { return ele.data('type') === 'External IP' ? '#ef4444' : '#0ea5e9'; },
                 'underlay-padding': 10,
                 'underlay-opacity': 0.4,
                 'underlay-shape': 'ellipse'
@@ -807,26 +988,26 @@ document.addEventListener('DOMContentLoaded', () => {
             minNodeSpacing: 50
           }
         });
-        
-        window.cyInstance.on('mouseover', 'node', function(e) {
-            const sel = e.target;
-            const connectedEdges = sel.connectedEdges();
-            const connectedNodes = connectedEdges.connectedNodes();
-            
-            window.cyInstance.elements().difference(connectedNodes).difference(connectedEdges).style({
-                'opacity': 0.15
-            });
+
+        window.cyInstance.on('mouseover', 'node', function (e) {
+          const sel = e.target;
+          const connectedEdges = sel.connectedEdges();
+          const connectedNodes = connectedEdges.connectedNodes();
+
+          window.cyInstance.elements().difference(connectedNodes).difference(connectedEdges).style({
+            'opacity': 0.15
+          });
         });
-        window.cyInstance.on('mouseout', 'node', function(e) {
-            window.cyInstance.elements().style({
-                'opacity': 1
-            });
+        window.cyInstance.on('mouseout', 'node', function (e) {
+          window.cyInstance.elements().style({
+            'opacity': 1
+          });
         });
-        
+
       } else {
         document.getElementById('cy').innerHTML = '<div style="color:var(--danger); text-align:center; padding-top: 2rem;">Cytoscape.js failed to load.</div>';
       }
-      
+
     } catch (e) {
       console.error('Failed to load network graph', e);
       document.getElementById('cy').innerHTML = '<div style="color:var(--danger); text-align:center; padding-top: 2rem;">Failed to load network artifacts.</div>';
@@ -835,77 +1016,77 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btnRefreshLayout = document.getElementById('btn-refresh-layout');
   if (btnRefreshLayout) {
-      btnRefreshLayout.addEventListener('click', () => {
-          if (window.cyInstance) {
-              window.cyInstance.layout({ 
-                  name: 'concentric', padding: 50, animate: true, 
-                  spacingFactor: 1.5, minNodeSpacing: 50 
-              }).run();
-          }
-      });
+    btnRefreshLayout.addEventListener('click', () => {
+      if (window.cyInstance) {
+        window.cyInstance.layout({
+          name: 'concentric', padding: 50, animate: true,
+          spacingFactor: 1.5, minNodeSpacing: 50
+        }).run();
+      }
+    });
   }
 
   const networkFilter = document.getElementById('network-filter');
   const networkFilterCustom = document.getElementById('network-filter-custom');
-  
+
   function applyNetworkFilter(minConnections) {
-      if (!window.cyInstance) return;
-      window.cyInstance.batch(() => {
-          window.cyInstance.nodes().forEach(node => {
-              if (node.degree() < minConnections) {
-                  node.style('display', 'none');
-              } else {
-                  node.style('display', 'element');
-              }
-          });
+    if (!window.cyInstance) return;
+    window.cyInstance.batch(() => {
+      window.cyInstance.nodes().forEach(node => {
+        if (node.degree() < minConnections) {
+          node.style('display', 'none');
+        } else {
+          node.style('display', 'element');
+        }
       });
+    });
   }
 
   if (networkFilter && networkFilterCustom) {
-      networkFilter.addEventListener('change', (e) => {
-          if (e.target.value === 'custom') {
-              networkFilterCustom.style.display = 'block';
-              networkFilterCustom.focus();
-              const val = parseInt(networkFilterCustom.value, 10);
-              if (!isNaN(val)) applyNetworkFilter(val);
-          } else {
-              networkFilterCustom.style.display = 'none';
-              applyNetworkFilter(parseInt(e.target.value, 10) || 0);
-          }
-      });
-      
-      networkFilterCustom.addEventListener('input', (e) => {
-          const val = parseInt(e.target.value, 10);
-          if (!isNaN(val)) {
-              applyNetworkFilter(val);
-          }
-      });
+    networkFilter.addEventListener('change', (e) => {
+      if (e.target.value === 'custom') {
+        networkFilterCustom.style.display = 'block';
+        networkFilterCustom.focus();
+        const val = parseInt(networkFilterCustom.value, 10);
+        if (!isNaN(val)) applyNetworkFilter(val);
+      } else {
+        networkFilterCustom.style.display = 'none';
+        applyNetworkFilter(parseInt(e.target.value, 10) || 0);
+      }
+    });
+
+    networkFilterCustom.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (!isNaN(val)) {
+        applyNetworkFilter(val);
+      }
+    });
   }
 
   const reportsList = document.getElementById('reports-list');
   const btnGenerateReport = document.getElementById('btn-generate-report');
-  
-  window.loadReports = async function() {
+
+  window.loadReports = async function () {
     if (!reportsList || !currentCaseId) return;
 
     try {
       reportsList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading reports...</td></tr>';
       const response = await api('GET', `/api/report?case_id=${currentCaseId}`);
-      
+
       if (!response.items || response.items.length === 0) {
         reportsList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No reports generated yet.</td></tr>';
         return;
       }
-      
+
       reportsList.innerHTML = '';
       response.items.forEach(rpt => {
         const tr = document.createElement('tr');
         const tokenStr = jwtToken || '';
-        
+
         const dateObj = new Date(rpt.generated_at + 'Z');
         const dateStr = dateObj.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
         const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-        
+
         tr.innerHTML = `
           <td>${rpt.filename || `Report #${rpt.id}`}</td>
           <td>${(rpt.format || 'pdf').toUpperCase()}</td>
@@ -925,23 +1106,23 @@ document.addEventListener('DOMContentLoaded', () => {
       reportsList.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger);">Failed to load reports.</td></tr>';
     }
   };
-  
+
   if (btnGenerateReport) {
     btnGenerateReport.addEventListener('click', async () => {
       if (!currentCaseId) {
-        alert("Please open a case to generate a report.");
+        window.showToast("Please open a case to generate a report.", 'error');
         return;
       }
       btnGenerateReport.disabled = true;
       const prevHtml = btnGenerateReport.innerHTML;
       btnGenerateReport.innerHTML = '<i data-lucide="loader" class="lucide-spin" style="width:18px;height:18px;"></i><span>Generating...</span>';
       if (typeof lucide !== 'undefined') lucide.createIcons();
-      
+
       try {
         await api('POST', '/api/report', { case_id: currentCaseId, format: 'pdf' });
         window.loadReports();
       } catch (err) {
-        alert("Failed to generate report: " + err.message);
+        window.showToast("Failed to generate report: " + err.message, 'error');
       } finally {
         btnGenerateReport.disabled = false;
         btnGenerateReport.innerHTML = prevHtml;
@@ -954,8 +1135,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputThreshold = document.getElementById('setting-anomaly-threshold');
   const inputTimezone = document.getElementById('setting-timezone');
   const inputTimeWindow = document.getElementById('setting-time-window');
-  
-  window.loadSettings = async function() {
+  const inputCrossCase = document.getElementById('setting-cross-case');
+
+  window.loadSettings = async function () {
     if (!inputThreshold) return;
     try {
       const data = await api('GET', '/api/settings');
@@ -963,31 +1145,33 @@ document.addEventListener('DOMContentLoaded', () => {
         inputThreshold.value = data.anomaly_threshold;
         inputTimezone.value = data.default_timezone;
         inputTimeWindow.value = data.correlation_time_window_seconds;
+        if (inputCrossCase) inputCrossCase.checked = data.cross_case_correlation;
       }
     } catch (err) {
       console.error("Failed to load settings", err);
     }
   };
-  
+
   if (btnSaveSettings) {
     btnSaveSettings.addEventListener('click', async () => {
       try {
         const payload = {
           anomaly_threshold: parseFloat(inputThreshold.value),
           default_timezone: inputTimezone.value || "UTC",
-          correlation_time_window_seconds: parseInt(inputTimeWindow.value, 10)
+          correlation_time_window_seconds: parseInt(inputTimeWindow.value, 10),
+          cross_case_correlation: inputCrossCase ? inputCrossCase.checked : true
         };
         await api('PUT', '/api/settings', payload);
-        alert("Settings saved successfully.");
+        window.showToast("Settings saved successfully.", 'success');
       } catch (err) {
-        alert("Failed to save settings: " + err.message);
+        window.showToast("Failed to save settings: " + err.message, 'error');
       }
     });
   }
 
   const findingModal = document.getElementById('finding-details-modal');
   const btnCloseFindingModal = document.getElementById('btn-close-finding-modal');
-  
+
   if (findingModal && btnCloseFindingModal) {
     btnCloseFindingModal.addEventListener('click', () => {
       findingModal.style.display = 'none';

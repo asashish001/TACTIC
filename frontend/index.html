@@ -56,6 +56,10 @@
           <i data-lucide="clock"></i>
           <span>Timeline</span>
         </a>
+        <a href="#" class="nav-item" data-view="artifacts">
+          <i data-lucide="archive"></i>
+          <span>Extracted Artifacts</span>
+        </a>
         <a href="#" class="nav-item" data-view="network">
           <i data-lucide="network"></i>
           <span>Network Graph</span>
@@ -350,6 +354,39 @@
         </div>
       </section>
 
+      <!-- Artifacts View -->
+      <section id="view-artifacts" class="view hidden animate-fade-in">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Extracted Artifacts</h1>
+            <p class="text-muted">General forensic artifacts extracted from evidence files.</p>
+          </div>
+          <button class="btn btn-outline" id="btn-refresh-artifacts">
+            <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
+            <span>Refresh</span>
+          </button>
+        </header>
+
+        <div class="card" style="margin-top: 1.5rem;">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Evidence File</th>
+                  <th>Artifact Type</th>
+                  <th>Value</th>
+                  <th>Extractor</th>
+                  <th>Extracted At</th>
+                </tr>
+              </thead>
+              <tbody id="extracted-artifacts-list">
+                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading artifacts...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- Network View -->
       <section id="view-network" class="view hidden animate-fade-in" style="height: calc(100vh - 4rem); display: flex; flex-direction: column;">
         <header class="page-header" style="flex-shrink:0;">
@@ -497,10 +534,9 @@
                   <div style="color: #e2e8f0; font-weight: 500;">Cross-Case Correlation</div>
                   <div style="font-size: 0.75rem; color: #64748b;">Link indicators across different investigations</div>
                 </div>
-                <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
-                  <input type="checkbox" style="opacity: 0; width: 0; height: 0;">
-                  <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 34px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);"></span>
-                  <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: #94a3b8; transition: .4s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-cross-case">
+                  <span class="toggle-slider"></span>
                 </label>
               </div>
             </div>
@@ -665,6 +701,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
 
   <script src="app.js?v=7"></script>
 </body>

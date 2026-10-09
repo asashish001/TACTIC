@@ -131,15 +131,20 @@ def calculate_correlation_score(
     return round(min(1.0, max(0.0, raw)), 4)
 
 
-def _collect_artifacts(case_id: int, db: Session) -> list[dict]:
+def _collect_artifacts(case_id: int, db: Session, cross_case: bool = False) -> list[dict]:
     """Gather all case artifacts into a normalised list of dicts."""
     items: list[dict] = []
 
-    for art in db.query(ExtractedArtifact).filter(ExtractedArtifact.case_id == case_id).all():
+    ext_query = db.query(ExtractedArtifact)
+    if not cross_case:
+        ext_query = ext_query.filter(ExtractedArtifact.case_id == case_id)
+
+    for art in ext_query.all():
+        prefix = "" if art.case_id == case_id else f"[Case {art.case_id}] "
         items.append({
             "type": f"Extracted_{art.artifact_type.upper()}",
             "id": f"ext_{art.id}",
-            "label": f"{art.artifact_type}: {art.value[:30]}",
+            "label": f"{prefix}{art.artifact_type}: {art.value[:30]}",
             "entity_value": art.value,
             "entity_type": art.artifact_type,
             "timestamp": getattr(art, "timestamp", None) or getattr(art, "extracted_at", None),
@@ -150,47 +155,70 @@ def _collect_artifacts(case_id: int, db: Session) -> list[dict]:
             ),
         })
 
-    for f in db.query(Finding).filter(Finding.case_id == case_id).all():
+    find_query = db.query(Finding)
+    if not cross_case:
+        find_query = find_query.filter(Finding.case_id == case_id)
+        
+    for f in find_query.all():
+        prefix = "" if f.case_id == case_id else f"[Case {f.case_id}] "
         items.append({
             "type": "Finding",
             "id": f"find_{f.id}",
-            "label": f.title[:35],
+            "label": f"{prefix}{f.title[:35]}",
             "entity_value": f.threat_category,
             "entity_type": "finding_category",
             "timestamp": f.created_at,
             "source": f.evidence.filename if f.evidence else "AI Engine",
             "event_type": (f.severity or "info").lower(),
             "_ts_dt": safe_parse_timestamp(f.created_at),
+            "original_case_id": f.case_id
         })
 
-    for b in db.query(BrowserArtifact).filter(BrowserArtifact.case_id == case_id).all():
+    brw_query = db.query(BrowserArtifact)
+    if not cross_case:
+        brw_query = brw_query.filter(BrowserArtifact.case_id == case_id)
+        
+    for b in brw_query.all():
+        prefix = "" if b.case_id == case_id else f"[Case {b.case_id}] "
         ts = getattr(b, "timestamp", None) or getattr(b, "extracted_at", None)
         items.append({
             "type": "BrowserArtifact",
             "id": f"browser_{b.id}",
-            "label": f"{b.browser.upper()} {b.artifact_type}: {b.domain or b.url or b.title or 'Record'}"[:35],
+            "label": f"{prefix}{b.browser.upper()} {b.artifact_type}: {b.domain or b.url or b.title or 'Record'}"[:35],
             "entity_value": b.domain or b.url or (b.details.get("username_value") if isinstance(b.details, dict) else "") or "",
             "entity_type": "domain" if b.domain else "url",
             "timestamp": ts,
             "source": f"Browser ({b.browser})",
             "event_type": (b.artifact_type or "unknown").lower(),
             "_ts_dt": safe_parse_timestamp(ts),
+            "original_case_id": b.case_id
         })
 
-    for n in db.query(NetworkArtifact).filter(NetworkArtifact.case_id == case_id).all():
+    net_query = db.query(NetworkArtifact)
+    if not cross_case:
+        net_query = net_query.filter(NetworkArtifact.case_id == case_id)
+        
+    for n in net_query.all():
+        prefix = "" if n.case_id == case_id else f"[Case {n.case_id}] "
         val = n.destination_ip or n.source_ip or (n.details.get("domain") if isinstance(n.details, dict) else "") or n.value or ""
         ts = getattr(n, "timestamp", None) or getattr(n, "extracted_at", None)
         items.append({
             "type": "NetworkArtifact",
             "id": f"net_{n.id}",
-            "label": f"Network {n.protocol or n.artifact_type or 'Unknown'}: {val}"[:35],
+            "label": f"{prefix}Network {n.protocol or n.artifact_type or 'Unknown'}: {val}"[:35],
             "entity_value": val,
             "entity_type": "ip" if (n.destination_ip or n.source_ip) else "domain",
             "timestamp": ts,
             "source": f"Network ({n.protocol or n.artifact_type or 'Unknown'})",
             "event_type": (n.protocol or n.artifact_type or "unknown").lower(),
             "_ts_dt": safe_parse_timestamp(ts),
+            "original_case_id": n.case_id
         })
+
+    # Add original case ID to ExtractedArtifacts we modified previously
+    for item in items:
+        if "original_case_id" not in item:
+            item["original_case_id"] = int(item["label"].split("]")[0].split(" ")[1]) if item["label"].startswith("[Case ") else case_id
 
     return items
 
@@ -323,7 +351,11 @@ def correlate_case_artifacts(
 
     db.query(ArtifactCorrelation).filter(ArtifactCorrelation.case_id == case_id).delete()
 
-    items = _collect_artifacts(case_id, db)
+    from app.services.settings_service import get_system_settings
+    settings = get_system_settings(db)
+    cross_case = settings.get("cross_case_correlation", False)
+
+    items = _collect_artifacts(case_id, db, cross_case=cross_case)
     n = len(items)
     if n < 2:
         db.commit()
@@ -342,7 +374,10 @@ def correlate_case_artifacts(
     for indices in entity_index.values():
         for i in range(len(indices)):
             for j in range(i + 1, len(indices)):
-                pair = (items[indices[i]]["id"], items[indices[j]]["id"])
+                a, b = items[indices[i]], items[indices[j]]
+                if a["original_case_id"] != case_id and b["original_case_id"] != case_id:
+                    continue
+                pair = (a["id"], b["id"])
                 if pair not in seen_pairs:
                     seen_pairs.add(pair)
                     candidates.append((indices[i], indices[j]))
@@ -352,7 +387,10 @@ def correlate_case_artifacts(
         for i in range(len(bucket_list)):
             for j in range(i + 1, len(bucket_list)):
                 ai, aj = bucket_list[i], bucket_list[j]
-                pair = (items[ai]["id"], items[aj]["id"])
+                a, b = items[ai], items[aj]
+                if a["original_case_id"] != case_id and b["original_case_id"] != case_id:
+                    continue
+                pair = (a["id"], b["id"])
                 if pair not in seen_pairs:
                     seen_pairs.add(pair)
                     candidates.append((ai, aj))

@@ -21,6 +21,7 @@ class SystemSettingsResponse(BaseModel):
     default_timezone: str = "UTC"
     correlation_weights: dict[str, float] = Field(default_factory=lambda: {"time": 0.30, "entity": 0.35, "source": 0.15, "event": 0.20})
     correlation_time_window_seconds: int = 3600
+    cross_case_correlation: bool = True
 
 
 class SystemSettingsUpdateRequest(BaseModel):
@@ -28,6 +29,7 @@ class SystemSettingsUpdateRequest(BaseModel):
     default_timezone: str | None = None
     correlation_weights: dict[str, float] | None = None
     correlation_time_window_seconds: int | None = Field(default=None, gt=0)
+    cross_case_correlation: bool | None = None
 
 
 @router.get("", response_model=SystemSettingsResponse)

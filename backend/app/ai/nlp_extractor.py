@@ -40,7 +40,7 @@ class NLPArtifactExtractor:
     def __init__(self, model_name: str | None = None):
         self.model_name = model_name or os.getenv("NLP_MODEL_NAME", "dslim/bert-base-NER")
         self.loaded = False
-        self.error_state = "Not yet initialized (lazy loading active)"
+        self.error_state: str | None = "Not yet initialized (lazy loading active)"
         self.pipeline = None
         self._initialized = False
         self._lock = threading.Lock()
@@ -91,15 +91,19 @@ class NLPArtifactExtractor:
                         aggregation_strategy="simple"
                     )
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(_load)
-                    self.pipeline = future.result(timeout=10.0)
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                future = executor.submit(_load)
+                try:
+                    self.pipeline = future.result(timeout=60.0)
+                finally:
+                    executor.shutdown(wait=False)
 
                 self.loaded = True
                 self.error_state = None
                 logger.info("Loaded Hugging Face Transformer model '%s' successfully.", self.model_name)
             except Exception as exc:
                 self.loaded = False
+                self._initialized = False  # allow retrying later
                 self.error_state = f"Model load failed: {exc!s}"
                 self.pipeline = None
                 logger.warning("Transformer model initialization fallback activated: %s", exc)
@@ -195,15 +199,21 @@ class NLPArtifactExtractor:
 
         for artifact_type, pattern, base_conf in regex_specs:
             for match in pattern.finditer(text):
-                val = match.group(0).strip()
+                if match.lastindex:
+                    val = match.group(match.lastindex).strip()
+                    start, end = match.start(match.lastindex), match.end(match.lastindex)
+                else:
+                    val = match.group(0).strip()
+                    start, end = match.start(), match.end()
+                
                 if not val or len(val) < 2:
+                    continue
+                if artifact_type in ("USERNAME", "HOSTNAME") and len(val) < 5:
                     continue
                 if artifact_type == "DOMAIN" and (IP_V4_PATTERN.match(val) or "/" in val or "\\" in val):
                     continue
                 if artifact_type in ("HOSTNAME", "USERNAME", "PROCESS") and val.isdigit():
                     continue
-
-                start, end = match.start(), match.end()
                 extracted.append({
                     "case_id": case_id,
                     "evidence_id": evidence_id,
