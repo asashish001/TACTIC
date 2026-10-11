@@ -1,2 +1,2 @@
-# Single supported runtime: FastAPI backend and React frontend.
+# Single supported runtime: FastAPI backend with Vanilla JS/HTML/CSS Cyber-HUD frontend.
 -r backend/requirements.txt

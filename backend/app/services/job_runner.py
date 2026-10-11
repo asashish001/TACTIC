@@ -122,7 +122,29 @@ def execute_job_pipeline(job_id: str | _uuid.UUID, actor_id: int | None = None, 
         from app.services.artifact_extraction import extract_and_store_artifacts
         for ev in case_evidence:
             try:
+                # 1. Generalized NLP String Carving
                 extract_and_store_artifacts(ev, db)
+                
+                # 2. Deep Memory Forensics (if applicable)
+                if ev.extension in {"raw", "mem", "dmp", "vmem", "bin"}:
+                    from app.services.memory_forensics import extract_memory_artifacts
+                    from app.models.extracted_artifact import ExtractedArtifact
+                    
+                    file_path = evidence_disk_path(ev)
+                    mem_artifacts, _ = extract_memory_artifacts(file_path)
+                    
+                    for item in mem_artifacts:
+                        db.add(ExtractedArtifact(
+                            case_id=case_id,
+                            evidence_id=ev.id,
+                            source_evidence_id=ev.id,
+                            artifact_type=item["artifact_type"],
+                            value=item["value"],
+                            confidence=item["confidence"],
+                            extractor=item["extractor"],
+                            details=item.get("details", {})
+                        ))
+                    db.commit()
             except Exception as exc:
                 logger.warning("Artifact extraction partial warning for Evidence %s: %s", ev.id, exc)
 

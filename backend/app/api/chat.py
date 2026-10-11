@@ -6,6 +6,7 @@ from urllib.request import Request as UrlRequest
 from urllib.request import urlopen
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -315,9 +316,9 @@ def fetch_ai_response(context: dict, question: str) -> tuple:
 
         elif provider == "gemini" and os.getenv("GEMINI_API_KEY"):
             api_key = os.environ["GEMINI_API_KEY"].strip()
-            configured_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip() or "gemini-3.5-flash-lite"
+            configured_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip() or "gemini-1.5-flash"
             models_to_try = [configured_model]
-            for fb_model in ("gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.6-flash"):
+            for fb_model in ("gemini-1.5-flash-8b", "gemini-1.5-flash", "gemini-1.5-pro"):
                 if fb_model not in models_to_try:
                     models_to_try.append(fb_model)
 
@@ -419,3 +420,64 @@ def ask_assistant(request: Request,
             "disclaimer_present": validation_meta["has_disclaimer"]
         }
     }
+
+
+@router.post("/stream", status_code=status.HTTP_200_OK)
+@limiter.limit(RATE_LIMIT_AI_CHAT)
+def ask_assistant_stream(request: Request,
+    payload: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Query the RAG assistant and return a Server-Sent Events (SSE) stream."""
+    case = db.query(Case).filter(Case.id == payload.case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    require_case_access(case, current_user)
+
+    async def event_stream():
+        import asyncio
+        import time
+        
+        # Send an immediate ping so the frontend knows the connection is open
+        # We add some padding to force the ASGI server (uvicorn) to flush the buffer
+        padding = " " * 1024
+        yield f"data: {json.dumps({'type': 'meta', 'provider': 'Thinking...'})}\n\n{padding}\n"
+        
+        # Yield control to the event loop so the headers and first chunk are sent immediately
+        await asyncio.sleep(0.1)
+        
+        # Now we do the heavy lifting in a background thread to avoid blocking the event loop
+        try:
+            # We run this in a thread because PyTorch model loading/downloading can take minutes!
+            context = await asyncio.to_thread(build_rag_context, case, db, payload.question)
+            
+            # Gemini/Ollama HTTP requests are safe in threads
+            answer, provider = await asyncio.to_thread(fetch_ai_response, context, payload.question)
+            answer, validation_meta = await asyncio.to_thread(validate_response, answer, context)
+            
+            # Send initial metadata
+            meta_payload = json.dumps({
+                "type": "meta",
+                "provider": provider,
+                "grounding_score": validation_meta["grounding_score"]
+            })
+            yield f"data: {meta_payload}\n\n"
+            
+            # Stream the answer word by word
+            words = answer.split(" ")
+            for i, word in enumerate(words):
+                token_payload = json.dumps({
+                    "type": "token",
+                    "text": word + (" " if i < len(words) - 1 else "")
+                })
+                yield f"data: {token_payload}\n\n"
+                await asyncio.sleep(0.01) # simulate token generation latency
+                
+            # Send done signal
+            yield "data: {\"type\": \"done\"}\n\n"
+        except Exception as e:
+            logger.error(f"Chat streaming error: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

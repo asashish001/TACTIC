@@ -148,3 +148,25 @@ def refresh_token(request: Request, body: RefreshRequest, db: Session = Depends(
         "refresh_token": create_refresh_token(data=token_claims, jti=new_jti),
         "token_type": "bearer"
     }
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = None
+
+
+@router.post("/logout")
+@limiter.limit("30/minute")
+def logout(request: Request, body: LogoutRequest | None = None, db: Session = Depends(get_db)):
+    """Revoke refresh token and end user session."""
+    if body and body.refresh_token:
+        try:
+            payload = decode_token(body.refresh_token, expected_type="refresh")
+            user = db.query(User).filter(User.id == payload.get("user_id")).first()
+            if user:
+                incoming_jti = payload.get("jti")
+                if incoming_jti:
+                    _remove_refresh_jti(user, incoming_jti)
+                    db.commit()
+        except Exception:
+            pass
+    return {"message": "Successfully logged out."}

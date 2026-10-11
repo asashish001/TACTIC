@@ -140,11 +140,15 @@ If, at any milestone, the corresponding bullet list in Section 3 isn't demonstra
 
 ## Phase 1 — Auth & case management
 
-- [x] `auth` router: investigator registration/login with hashed passwords, session handling **[SEC]**
-- [x] Session-required dependency applied to all non-auth routers **[SEC]**
+- [x] `auth` router: investigator registration/login with bcrypt hashed passwords, JWT session handling **[SEC]**
+- [x] Token security: single-use refresh token rotation with JTI tracking and `/api/auth/logout` revocation **[SEC]**
+- [x] Session-required dependency (`get_current_user`) applied to all protected forensic routers **[SEC]**
 - [x] `cases` router: create case, list cases, get case detail, update case status
 - [x] `case_service`: business logic backing the above, with unit tests
-- [x] Frontend: login screen + case dashboard (list/create case)
+- [x] Frontend: glassmorphic authentication portal (login/register) with real-time password complexity validation
+- [x] Inactivity lockout: automatic 15-minute idle lock with password verification to resume
+- [x] Investigator self-service: `/api/users/me` profile details and `/api/users/me/change-password` endpoint
+- [x] Test suite: automated tests for registration, valid/invalid logins, token rotation, and logout revocation (`test_auth_endpoints.py`, `test_refresh_token_rotation.py`) **[SEC]**
 - [x] Test: create case → appears in list → fetch by id round-trip
 
 ---
@@ -257,3 +261,5 @@ Build one Extractor per evidence type. Each takes a raw `EvidenceItem` and produ
 - Court-certified legal chain-of-custody workflow / multi-jurisdiction compliance certification
 - Real-time network intrusion prevention or active incident response actions
 - Mobile-device physical/chip-off forensic acquisition
+- **Web-Based Hex Viewer**: Native rendering of binary streams with 16-column grids and ASCII translations in the UI.
+- **Custom Draft Reports (Shopping Cart)**: Allowing analysts to cherry-pick individual findings and evidence items into a draft report before final compilation.

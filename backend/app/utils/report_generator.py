@@ -101,7 +101,7 @@ def build_pdf_report(case_data: dict, destination: Path) -> None:
     timeline_rows = [["Timestamp", "Event Description", "Evidence Source", "Severity"]]
     for ev in case_data["timeline"][:15]: # Show first 15 events
         timeline_rows.append([
-            ev["timestamp"][:19].replace("T", " "),
+            (ev["timestamp"][:19].replace("T", " ") if ev.get("timestamp") else "Unknown"),
             ev["event"],
             ev["evidence_source"],
             ev["priority"].upper()
@@ -383,7 +383,7 @@ def build_docx_report(case_data: dict, destination: Path) -> None:
     
     for ev in case_data["timeline"][:15]:
         row = time_table.add_row().cells
-        row[0].text = ev["timestamp"][:19].replace("T", " ")
+        row[0].text = (ev["timestamp"][:19].replace("T", " ") if ev.get("timestamp") else "Unknown")
         row[1].text = ev["event"]
         row[2].text = ev["evidence_source"]
         row[3].text = ev["priority"].upper()

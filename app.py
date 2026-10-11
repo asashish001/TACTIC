@@ -22,9 +22,8 @@ def main() -> None:
     sys.modules.pop("app", None)
 
     import uvicorn
-    from app.main import app
 
-    uvicorn.run(app, host=host, port=port)
+    uvicorn.run("backend.app.main:app", host=host, port=port, reload=True, reload_dirs=[str(backend_dir)])
 
 
 if __name__ == "__main__":

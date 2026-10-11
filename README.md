@@ -89,15 +89,30 @@ The application will be accessible at `http://localhost:8000` with persistent vo
 - **Stage 8 (Reporting)**: Publication-grade PDF and DOCX compilation.
 
 ### 3. Human-in-the-Loop Finding Review
-- Interactive review table enabling investigators to **Approve**, **Reject**, or **Escalate** automated findings.
+- **Tinder-like Review Queue**: Interactive Triage Queue with fluid swipe animations to **Approve** or **Reject** automated findings.
 - Tracks reviewer user ID, timestamps, and justification notes in compliance with forensic audit standards.
-- Bulk review capabilities for rapid incident triage.
+- Findings dynamically update their `review_status` in the backend before being finalized in the report.
 
 ### 4. Grounded AI Assistant (RAG)
 - Context-bounded investigation assistant querying case-specific evidence and findings.
 - Deep Semantic Search: Uses local Snowflake (arctic-embed) models to dynamically retrieve and prioritize the most relevant evidence for your specific query.
 - Multi-provider support: Google Gemini, OpenAI, Ollama (local), or deterministic rule summary fallback.
+- **Real-time Server-Sent Events (SSE)**: Streams chat responses instantaneously using persistent HTTP connections for fluid conversation.
 - Real-time anti-hallucination validation verifying all mentioned entities against known case artifacts.
+
+### 5. Native Desktop-Like UX
+- **Dynamic Chart.js Visualizations**: Dashboard natively renders Timeline Event bar charts and Evidence Type donut charts.
+- **Contextual Right-Click Menus**: Native-feeling context menus in the Evidence Locker and Network Graph (e.g., "Send to AI Chat").
+- **Column-level Data Filtering**: Sticky table headers with embedded multi-column search and sorting.
+- Lightning-fast Server-Sent Events (SSE) streaming for long-running analysis jobs without polling overhead.
+
+### 6. Enterprise Authentication, RBAC & Workstation Security
+- **JWT Token Rotation & Revocation**: Short-lived access tokens combined with single-use refresh token rotation and explicit server-side revocation on logout (`/api/auth/logout`).
+- **Interactive Authentication Portal**: Glassmorphic portal supporting investigator registration with real-time password complexity validation.
+- **Role-Based Access Control (RBAC)**: Role hierarchy (`admin`, `investigator`, `student`, `viewer`) safeguarding case access and sensitive actions.
+- **Workstation Lockout**: Automatic 15-minute inactivity lock and manual lock with password-verified resumption and account switching.
+- **Investigator Self-Service**: Embedded account overview and secure passphrase update endpoint (`/api/users/me/change-password`).
+
 
 ---
 
@@ -193,17 +208,36 @@ AI Digital Forensics Assistant/
 │   │
 │   └── tests/                   # Automated test suite (114+ pytest test cases)
 │       ├── conftest.py          # Shared fixtures, in-memory DB, offline test settings
+│       ├── test_auth_endpoints.py # Registration, login, token refresh, and logout tests
+│       ├── test_refresh_token_rotation.py # Token rotation & theft detection tests
 │       ├── test_api_integration.py
 │       ├── test_async_job_processing.py
 │       ├── test_concurrent_uploads.py
-│       ├── test_evidence_integrity.py
+│       ├── test_integrity_verification.py
 │       ├── test_forensic_timeline_engine.py
 │       ├── test_live_server_api.py
 │       └── ...
 │
 ├── frontend/                    # Frontend client
 │   ├── index.html               # High-performance Vanilla Cyber-HUD SPA
-│   └── assets/                  # Application branding & vector icons
+│   ├── styles.css               # Design system & cyber-forensics theme tokens
+│   ├── logo.jpg                 # TACTIC branding asset
+│   └── js/                      # Modular client application logic
+│       ├── app.js               # Application coordinator & routing
+│       ├── auth.js              # Token management, login portal, user state
+│       ├── api.js               # Authenticated REST client with auto-refresh rotation
+│       ├── session.js           # Idle timer & workstation lock manager
+│       ├── cases.js             # Case lifecycle management
+│       ├── evidence.js          # Ingestion & file streaming
+│       ├── dashboard.js         # Forensic overview metrics & Chart.js
+│       ├── analysis.js          # Pipeline triggers & findings
+│       ├── triage.js            # Human-in-the-loop review queue
+│       ├── timeline.js          # Chronological event visualization
+│       ├── network.js           # Cytoscape relationship graph
+│       ├── chat.js              # Streaming RAG assistant interface
+│       ├── reports.js           # Document export generators
+│       ├── settings.js          # System parameters & account security
+│       └── ui.js                # Toasts, context menus, and DOM utilities
 │
 ├── scripts/                     # Operational & dependency audit scripts
 │   └── audit-deps.sh
@@ -248,8 +282,12 @@ Interactive Swagger documentation is available at **`http://127.0.0.1:8000/docs`
 
 | Endpoint | Method | Role | Description |
 | :--- | :--- | :--- | :--- |
-| `/api/auth/login` | POST | Public | Authenticate user & issue JWT tokens |
-| `/api/auth/refresh` | POST | Public | Refresh expired access tokens |
+| `/api/auth/register` | POST | Public | Register new investigator account |
+| `/api/auth/login` | POST | Public | Authenticate credentials & issue JWT tokens |
+| `/api/auth/refresh` | POST | Public | Rotate refresh token for new token pair |
+| `/api/auth/logout` | POST | Public | Invalidate refresh token and terminate session |
+| `/api/users/me` | GET | Authenticated | Retrieve active investigator profile |
+| `/api/users/me/change-password` | POST | Authenticated | Change investigator passphrase |
 | `/api/cases` | GET/POST | Analyst | List cases or create a new case |
 | `/api/cases/{id}` | GET/PUT/DELETE | Analyst | Retrieve, update, or cascade-delete a case |
 | `/api/evidence` | GET | Analyst | Paginated evidence items by case |
@@ -261,6 +299,8 @@ Interactive Swagger documentation is available at **`http://127.0.0.1:8000/docs`
 | `/api/timeline/{case_id}` | GET | Analyst | Retrieve unified chronological timeline |
 | `/api/correlation/{case_id}` | GET | Analyst | Fetch cross-evidence relationship graph |
 | `/api/chat` | POST | Analyst | Context-grounded RAG forensic assistant |
+| `/api/chat/stream` | POST | Analyst | Server-Sent Events (SSE) stream for RAG assistant |
+| `/api/jobs/case/{case_id}/stream` | GET | Analyst | Server-Sent Events (SSE) stream for job progress |
 | `/api/report` | GET/POST | Analyst | Generate PDF or Word forensic reports |
 | `/api/report/download/{id}` | GET | Analyst | Stream authenticated report document |
 | `/api/health` | GET | Public | System health, memory, and storage metrics |

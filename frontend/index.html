@@ -11,9 +11,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
   
-  <!-- Icons (Lucide) -->
-  <script src="lucide.min.js"></script>
-  <script src="cytoscape.min.js"></script>
+  <!-- Icons (Lucide) & Libraries -->
+  <script src="js/lucide.min.js"></script>
+  <script src="js/cytoscape.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css?v=3">
@@ -22,6 +23,14 @@
   
   <div class="app-container">
     
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+      <button id="mobile-menu-btn" aria-label="Toggle Navigation Menu" style="background: transparent; border: none; color: white; cursor: pointer; display: flex; align-items: center; padding: 0.5rem;">
+        <i data-lucide="menu" style="width: 28px; height: 28px;"></i>
+      </button>
+      <span style="font-size: 1.25rem; font-weight: 700; letter-spacing: 1px; background: linear-gradient(to right, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">TACTIC</span>
+    </div>
+
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header" style="padding: 1.5rem 2rem; flex-direction: column; align-items: center; gap: 1rem;">
@@ -56,6 +65,10 @@
           <i data-lucide="clock"></i>
           <span>Timeline</span>
         </a>
+        <a href="#" class="nav-item" data-view="triage">
+          <i data-lucide="check-square"></i>
+          <span>AI Triage Queue</span>
+        </a>
         <a href="#" class="nav-item" data-view="artifacts">
           <i data-lucide="archive"></i>
           <span>Extracted Artifacts</span>
@@ -77,6 +90,40 @@
           <span>Settings</span>
         </a>
       </nav>
+      <div style="padding: 1.25rem 1rem; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 0.85rem;">
+        <div>
+          <label for="role-selector" style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; display: block;">Dashboard Role</label>
+          <select id="role-selector" style="width: 100%; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 0.35rem; padding: 0.45rem 0.5rem; font-size: 0.8rem; outline: none; cursor: pointer;">
+            <option value="analyst">Analyst View</option>
+            <option value="executive">Executive View</option>
+          </select>
+        </div>
+
+        <!-- Authenticated Investigator Profile Card -->
+        <div id="sidebar-user-profile" style="display: none; align-items: center; justify-content: space-between; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.6rem; padding: 0.6rem 0.75rem; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.6rem; min-width: 0; flex: 1;">
+            <div id="sidebar-user-avatar" style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-weight: 700; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);">
+              AD
+            </div>
+            <div style="min-width: 0; flex: 1;">
+              <div id="sidebar-user-name" style="font-size: 0.8rem; font-weight: 600; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                Investigator
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.3rem;">
+                <span id="sidebar-user-role" class="badge badge-info" style="font-size: 0.6rem; padding: 0.1rem 0.4rem;">INVESTIGATOR</span>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.25rem;">
+            <button id="btn-sidebar-lock" class="btn-icon" title="Lock Workstation" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 0.35rem; border-radius: 0.35rem; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#f8fafc'; this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent'">
+              <i data-lucide="lock" style="width: 15px; height: 15px;"></i>
+            </button>
+            <button id="btn-sidebar-logout" class="btn-icon" title="Sign Out" style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0.35rem; border-radius: 0.35rem; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#fca5a5'; this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='#ef4444'; this.style.background='transparent'">
+              <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
+            </button>
+          </div>
+        </div>
+      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -92,8 +139,15 @@
       <section id="view-dashboard" class="view active animate-fade-in">
         <header class="page-header">
           <div>
-            <h1 class="page-title">Forensic Dashboard</h1>
-            <p class="text-muted">System Overview & Active Intelligence</p>
+            <h1 class="page-title" style="display: flex; align-items: center; gap: 0.75rem;">
+              Forensic Dashboard
+              <div id="connection-status" class="status-indicator live" title="Connected to SSE Stream"></div>
+            </h1>
+            <p class="text-muted" style="display: flex; align-items: center; gap: 0.75rem;">
+              System Overview & Active Intelligence 
+              <span>|</span>
+              <span id="data-freshness" style="font-size: 0.8rem; color: #94a3b8; font-weight: 500;">Last Updated: Just now</span>
+            </p>
           </div>
           <button class="btn" id="btn-generate-summary">
             <i data-lucide="activity" style="width:18px;height:18px;"></i>
@@ -101,12 +155,12 @@
           </button>
         </header>
 
-        <div id="dashboard-summary-container" class="dashboard-summary hidden" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+        <div id="dashboard-summary-container" class="dashboard-summary" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
             <div style="display: flex; align-items: center; margin-bottom: 0.5rem; color: #a78bfa;">
                 <i data-lucide="sparkles" style="width:18px;height:18px; margin-right: 8px;"></i>
                 <h3 style="margin: 0; font-size: 1rem;">AI Executive Triage Summary</h3>
             </div>
-            <p id="dashboard-summary-text" style="color: var(--text-color); line-height: 1.6; margin: 0;">Generating...</p>
+            <p id="dashboard-summary-text" style="color: var(--text-color); line-height: 1.6; margin: 0; font-style: italic;">Click "Generate Summary" in the top right to generate an AI triage report for this case.</p>
         </div>
 
         <div class="stats-grid delay-1">
@@ -138,17 +192,50 @@
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon-wrapper" style="color: #f59e0b; background: rgba(245, 158, 11, 0.1);">
-              <i data-lucide="server"></i>
+            <div class="stat-icon-wrapper" style="color: #ef4444; background: rgba(239, 68, 68, 0.1);">
+              <i data-lucide="alert-circle"></i>
             </div>
             <div class="stat-info">
-              <h3>Active Agents</h3>
-              <div class="value" id="stat-active-agents">-</div>
+              <h3>Critical Alerts</h3>
+              <div class="value" id="stat-critical-alerts">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="color: #0ea5e9; background: rgba(14, 165, 233, 0.1);">
+              <i data-lucide="activity"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Analysis Jobs</h3>
+              <div class="value" id="stat-analysis-jobs">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon-wrapper" style="color: #64748b; background: rgba(100, 116, 139, 0.1);">
+              <i data-lucide="hard-drive"></i>
+            </div>
+            <div class="stat-info">
+              <h3>Total Evidence</h3>
+              <div class="value" id="stat-evidence-size">-</div>
             </div>
           </div>
         </div>
 
-        <div style="margin-top: 2.5rem;">
+        <div class="charts-grid delay-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+          <div class="card" style="padding: 1.5rem; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 1rem;">
+            <h3 style="margin-bottom: 1rem; font-size: 1.1rem; font-weight: 600;">Timeline of Events</h3>
+            <div style="position: relative; height: 300px; width: 100%;">
+              <canvas id="timelineChart"></canvas>
+            </div>
+          </div>
+          <div class="card" style="padding: 1.5rem; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 1rem;">
+            <h3 style="margin-bottom: 1rem; font-size: 1.1rem; font-weight: 600;">Evidence Distribution</h3>
+            <div style="position: relative; height: 300px; width: 100%;">
+              <canvas id="evidenceChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div id="alerts-section" style="margin-top: 2.5rem;">
           <h2 style="font-size: 1.25rem; margin-bottom: 1.25rem; font-weight: 600;">Recent Alerts</h2>
           <div class="table-container delay-2">
             <table>
@@ -197,43 +284,58 @@
             <h1 class="page-title">Evidence Locker</h1>
             <p class="text-muted">Upload and manage digital artifacts</p>
           </div>
-          <button class="btn" id="btn-upload-evidence">
-            <i data-lucide="upload" style="width:18px;height:18px;"></i>
-            <span>Upload Evidence</span>
-          </button>
+          <div style="display: flex; gap: 0.75rem;">
+            <button class="btn btn-secondary" id="btn-export-evidence">
+              <i data-lucide="download" style="width:18px;height:18px;"></i>
+              <span>Export CSV</span>
+            </button>
+            <button class="btn" id="btn-upload-evidence">
+              <i data-lucide="upload" style="width:18px;height:18px;"></i>
+              <span>Upload Evidence</span>
+            </button>
+          </div>
         </header>
         <div class="stats-grid delay-1" style="margin-bottom:2rem;">
           <div class="stat-card">
             <i data-lucide="hard-drive" style="color:#3b82f6; width:32px; height:32px;"></i>
             <div>
               <div style="font-size: 1.5rem; font-weight: bold;">Disk Images</div>
-              <div class="text-muted">12 items</div>
+              <div class="text-muted" id="stat-disk-images">0 items</div>
             </div>
           </div>
           <div class="stat-card">
             <i data-lucide="file" style="color:#10b981; width:32px; height:32px;"></i>
             <div>
               <div style="font-size: 1.5rem; font-weight: bold;">Documents</div>
-              <div class="text-muted">84 items</div>
+              <div class="text-muted" id="stat-documents">0 items</div>
             </div>
           </div>
           <div class="stat-card">
             <i data-lucide="database" style="color:#8b5cf6; width:32px; height:32px;"></i>
             <div>
               <div style="font-size: 1.5rem; font-weight: bold;">Memory Dumps</div>
-              <div class="text-muted">4 items</div>
+              <div class="text-muted" id="stat-memory-dumps">0 items</div>
             </div>
           </div>
         </div>
-        <div class="table-container delay-2">
-          <table>
+        <div class="search-bar delay-2" style="margin-bottom: 1rem; padding: 0.5rem 1rem;">
+          <i data-lucide="search" style="color:#94a3b8; width:18px; height:18px;"></i>
+          <input type="text" id="search-evidence" placeholder="Filter evidence by name, type, or status...">
+        </div>
+        <div class="table-container delay-2" id="evidence-drop-zone" style="position: relative;">
+          <div id="evidence-drop-overlay" style="display: none; position: absolute; inset: 0; background: rgba(59, 130, 246, 0.15); border: 2px dashed var(--accent); border-radius: 12px; z-index: 50; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+            <i data-lucide="upload-cloud" style="width: 48px; height: 48px; color: var(--accent); margin-bottom: 1rem;"></i>
+            <h3 style="color: white; font-size: 1.25rem;">Drop files to upload into active case</h3>
+          </div>
+          <table id="evidence-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Size</th>
-                <th>Status</th>
+                <th class="sortable" data-sort="id">ID <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th class="sortable" data-sort="name">Name <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th class="sortable" data-sort="type">Type <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th class="sortable" data-sort="size">Size <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th class="sortable" data-sort="status">Status <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th style="width: 40px;"></th>
               </tr>
             </thead>
             <tbody id="evidence-list">
@@ -313,10 +415,16 @@
               <div class="msg-bubble">Hello! I'm ready to assist with your investigation. What would you like to know?</div>
             </div>
           </div>
+          <div class="chat-suggestions" id="chat-suggestions">
+            <button class="chip" data-query="Summarize this case">Summarize this case</button>
+            <button class="chip" data-query="Are there any malicious IPs?">Are there any malicious IPs?</button>
+            <button class="chip" data-query="What are the most critical findings?">What are the most critical findings?</button>
+            <button class="chip" data-query="Identify all discovered malware">Identify all discovered malware</button>
+          </div>
           <div class="chat-input-area">
             <div class="chat-input-box">
               <input type="text" id="chat-input" placeholder="Ask anything...">
-              <button class="btn" id="chat-send" style="padding: 0.5rem 1rem;">
+              <button class="btn" id="chat-send" aria-label="Send Message" style="padding: 0.5rem 1rem;">
                 <i data-lucide="send" style="width:18px;height:18px;"></i>
               </button>
             </div>
@@ -331,20 +439,24 @@
             <h1 class="page-title">Event Timeline</h1>
             <p class="text-muted">Chronological view of forensic events</p>
           </div>
-          <button class="btn btn-secondary">
-            <i data-lucide="filter" style="width:18px;height:18px;"></i>
-            <span>Filter Events</span>
+          <button class="btn btn-secondary" id="btn-export-timeline">
+            <i data-lucide="download" style="width:18px;height:18px;"></i>
+            <span>Export CSV</span>
           </button>
         </header>
+        <div class="search-bar delay-2" style="margin-bottom: 1rem; padding: 0.5rem 1rem;">
+          <i data-lucide="search" style="color:#94a3b8; width:18px; height:18px;"></i>
+          <input type="text" id="search-timeline" placeholder="Filter timeline events...">
+        </div>
         <div class="table-container delay-1">
-          <table>
+          <table id="timeline-table">
             <thead>
               <tr>
-                <th>Timestamp</th>
-                <th>Source</th>
-                <th>Provider</th>
-                <th>Event</th>
-                <th>Priority</th>
+                <th class="sortable" data-sort="timestamp">Timestamp <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th class="sortable" data-sort="source">Source <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th class="sortable" data-sort="provider">Provider <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th class="sortable" data-sort="event">Event <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                <th class="sortable" data-sort="priority">Priority <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
               </tr>
             </thead>
             <tbody id="timeline-events-list">
@@ -355,28 +467,58 @@
       </section>
 
       <!-- Artifacts View -->
+      <section id="view-triage" class="view hidden animate-fade-in">
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">AI Triage Queue</h1>
+            <p class="text-muted">Human-in-the-Loop review of AI findings before finalizing the report.</p>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <span id="triage-count" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600;">0 Pending</span>
+            <button class="btn btn-outline" id="btn-refresh-triage" aria-label="Refresh Triage Queue">
+              <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
+              <span>Refresh</span>
+            </button>
+          </div>
+        </header>
+
+        <div id="triage-container" style="display: flex; justify-content: center; align-items: center; min-height: 500px; margin-top: 2rem;">
+            <!-- Tinder card injected via JS -->
+            <div id="triage-empty" style="text-align: center; color: var(--text-muted);">
+                <i data-lucide="check-circle" style="width: 48px; height: 48px; color: #10b981; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <h2>All Caught Up!</h2>
+                <p>No pending AI findings require your review.</p>
+            </div>
+        </div>
+      </section>
+
+      <!-- Artifacts View -->
       <section id="view-artifacts" class="view hidden animate-fade-in">
         <header class="page-header">
           <div>
             <h1 class="page-title">Extracted Artifacts</h1>
             <p class="text-muted">General forensic artifacts extracted from evidence files.</p>
           </div>
-          <button class="btn btn-outline" id="btn-refresh-artifacts">
+          <button class="btn btn-outline" id="btn-refresh-artifacts" aria-label="Refresh Extracted Artifacts">
             <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
             <span>Refresh</span>
           </button>
         </header>
 
-        <div class="card" style="margin-top: 1.5rem;">
+        <div class="search-bar delay-2" style="margin-bottom: 1rem; padding: 0.5rem 1rem; margin-top: 1.5rem;">
+          <i data-lucide="search" style="color:#94a3b8; width:18px; height:18px;"></i>
+          <input type="text" id="search-artifacts" placeholder="Filter extracted artifacts...">
+        </div>
+        <div class="card">
           <div class="table-container">
-            <table>
+            <table id="artifacts-table">
               <thead>
                 <tr>
-                  <th>Evidence File</th>
-                  <th>Artifact Type</th>
-                  <th>Value</th>
-                  <th>Extractor</th>
-                  <th>Extracted At</th>
+                  <th class="sortable" data-sort="evidence">Evidence File <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                  <th class="sortable" data-sort="type">Artifact Type <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                  <th class="sortable" data-sort="value">Value <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                  <th class="sortable" data-sort="extractor">Extractor <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                  <th class="sortable" data-sort="extracted_at">Extracted At <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
                 </tr>
               </thead>
               <tbody id="extracted-artifacts-list">
@@ -405,7 +547,7 @@
               </select>
               <input type="number" id="network-filter-custom" min="0" placeholder="Custom" style="background: rgba(0,0,0,0.3); color: white; border: none; padding: 0.5rem; width: 80px; outline: none; border-left: 1px solid rgba(255,255,255,0.1); display: none;">
             </div>
-            <button id="btn-refresh-layout" class="btn btn-secondary">
+            <button id="btn-refresh-layout" class="btn btn-secondary" aria-label="Reset Graph Layout">
               <i data-lucide="refresh-cw" style="width:18px;height:18px;"></i>
               <span>Refresh Layout</span>
             </button>
@@ -428,10 +570,16 @@
             <h1 class="page-title">Intelligence Reports</h1>
             <p class="text-muted">Generated reports and case summaries</p>
           </div>
-          <button class="btn" id="btn-generate-report">
-            <i data-lucide="file-text" style="width:18px;height:18px;"></i>
-            <span>New Report</span>
-          </button>
+          <div style="display: flex; gap: 0.75rem;">
+            <button class="btn btn-secondary" id="btn-generate-report-docx" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: #3b82f6;">
+              <i data-lucide="file-text" style="width:18px;height:18px;"></i>
+              <span>Generate DOCX</span>
+            </button>
+            <button class="btn" id="btn-generate-report-pdf" style="background: #ef4444; color: white; border-color: transparent;">
+              <i data-lucide="file" style="width:18px;height:18px;"></i>
+              <span>Generate PDF</span>
+            </button>
+          </div>
         </header>
         <div class="table-container delay-1">
           <table>
@@ -455,7 +603,7 @@
       <section id="view-settings" class="view hidden animate-fade-in">
         <header class="page-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; margin-bottom: 2rem;">
           <div>
-            <h1 class="page-title" style="background: linear-gradient(to right, #60a5fa, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">System Settings</h1>
+            <h1 class="page-title" style="background: linear-gradient(to right, #60a5fa, #a855f7); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">System Settings</h1>
             <p class="text-muted">Configure models, storage, and intelligent agents</p>
           </div>
           <button class="btn" id="btn-save-settings" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); border: none; box-shadow: 0 0 15px rgba(139, 92, 246, 0.4); transition: transform 0.2s, box-shadow 0.2s;">
@@ -465,6 +613,64 @@
         </header>
         
         <div class="features-grid delay-1" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem;">
+
+          <!-- Investigator Account & Security -->
+          <div class="feature-card" style="background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(59, 130, 246, 0.25); border-top: 3px solid #3b82f6; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
+              <div style="background: rgba(59, 130, 246, 0.2); padding: 0.5rem; border-radius: 0.5rem; color: #60a5fa;">
+                <i data-lucide="shield-check"></i>
+              </div>
+              <div>
+                <h3 class="feature-title" style="margin: 0; font-size: 1.25rem;">Investigator Account</h3>
+                <p style="font-size: 0.75rem; color: #94a3b8; margin: 0;">Active session profile & security credentials</p>
+              </div>
+            </div>
+
+            <!-- Profile Overview Info -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.5rem; padding: 0.85rem; margin-bottom: 1.25rem;">
+              <div>
+                <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">Username</div>
+                <div id="profile-username" style="font-weight: 600; color: #f8fafc; font-size: 0.9rem;">—</div>
+              </div>
+              <div>
+                <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">Assigned Role</div>
+                <div id="profile-role" style="font-weight: 600; color: #60a5fa; font-size: 0.9rem;">INVESTIGATOR</div>
+              </div>
+              <div>
+                <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">Full Name</div>
+                <div id="profile-fullname" style="font-weight: 500; color: #cbd5e1; font-size: 0.85rem;">—</div>
+              </div>
+              <div>
+                <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">Timezone</div>
+                <div id="profile-timezone" style="font-weight: 500; color: #cbd5e1; font-size: 0.85rem;">UTC</div>
+              </div>
+            </div>
+
+            <!-- Password Change Section -->
+            <form id="form-change-password" style="display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
+              <div style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 0.4rem;">
+                <i data-lucide="key" style="width:14px;height:14px;color:#60a5fa;"></i> Change Passphrase
+              </div>
+              <div id="change-password-status" style="display: none; padding: 0.5rem 0.75rem; border-radius: 0.4rem; font-size: 0.75rem;"></div>
+
+              <div>
+                <label for="current-password" style="display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">Current Password</label>
+                <input type="password" id="current-password" required placeholder="Enter current password" style="width: 100%; padding: 0.6rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.4rem; outline: none; font-size: 0.85rem;">
+              </div>
+              <div>
+                <label for="new-password" style="display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">New Password (min 8 chars, 1 upper, 1 lower, 1 digit, 1 special)</label>
+                <input type="password" id="new-password" required minlength="8" placeholder="Enter strong new password" style="width: 100%; padding: 0.6rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.4rem; outline: none; font-size: 0.85rem;">
+              </div>
+              <div>
+                <label for="confirm-password" style="display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">Confirm New Password</label>
+                <input type="password" id="confirm-password" required minlength="8" placeholder="Re-enter new password" style="width: 100%; padding: 0.6rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.4rem; outline: none; font-size: 0.85rem;">
+              </div>
+
+              <button type="submit" class="btn" style="width: 100%; justify-content: center; padding: 0.6rem; font-size: 0.85rem; margin-top: 0.35rem;">
+                <i data-lucide="check" style="width:14px;height:14px;"></i> Update Passphrase
+              </button>
+            </form>
+          </div>
           
           <!-- AI Engine Settings -->
           <div class="feature-card" style="background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(139, 92, 246, 0.2); border-top: 3px solid #8b5cf6; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
@@ -637,7 +843,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 style="font-size: 1.25rem;">Create New Case</h2>
-        <button id="btn-close-modal" class="btn btn-secondary" style="padding: 0.25rem;">
+        <button id="btn-close-modal" class="btn btn-secondary" aria-label="Close Case Modal" style="padding: 0.25rem;">
           <i data-lucide="x" style="width:18px;height:18px;"></i>
         </button>
       </div>
@@ -669,7 +875,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 style="font-size: 1.25rem;">Upload Evidence</h2>
-        <button id="btn-close-upload-modal" class="btn btn-secondary" style="padding: 0.25rem;">
+        <button id="btn-close-upload-modal" class="btn btn-secondary" aria-label="Close Upload Modal" style="padding: 0.25rem;">
           <i data-lucide="x" style="width:18px;height:18px;"></i>
         </button>
       </div>
@@ -679,7 +885,7 @@
         </div>
         <div>
           <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Select File</label>
-          <input type="file" id="evidence-file" required style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none;">
+          <input type="file" id="evidence-file" required multiple style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none;">
         </div>
         <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
           <button type="submit" class="btn" id="btn-submit-upload">Upload File</button>
@@ -692,7 +898,7 @@
     <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto; margin: 2rem auto;">
       <div class="modal-header">
         <h2 style="font-size: 1.25rem;">Finding Details</h2>
-        <button id="btn-close-finding-modal" class="btn btn-secondary" style="padding: 0.25rem;">
+        <button id="btn-close-finding-modal" class="btn btn-secondary" aria-label="Close Finding Details" style="padding: 0.25rem;">
           <i data-lucide="x" style="width:18px;height:18px;"></i>
         </button>
       </div>
@@ -702,9 +908,175 @@
     </div>
   </div>
 
+  <!-- Authentication Portal Modal -->
+  <div id="auth-modal" class="auth-backdrop hidden">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo-badge">
+          <i data-lucide="shield-check" class="auth-shield-icon"></i>
+        </div>
+        <h1 class="auth-title">TACTIC FORENSIC SUITE</h1>
+        <p class="auth-subtitle">Tactical Analysis & Threat Intelligence Center</p>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="auth-tabs">
+        <button id="auth-tab-login" class="auth-tab active" type="button">
+          <i data-lucide="log-in" style="width:16px;height:16px;"></i>
+          <span>Sign In</span>
+        </button>
+        <button id="auth-tab-register" class="auth-tab" type="button">
+          <i data-lucide="user-plus" style="width:16px;height:16px;"></i>
+          <span>Register Investigator</span>
+        </button>
+      </div>
+
+      <!-- Banners -->
+      <div id="auth-error-msg" class="auth-alert-banner danger" style="display: none;"></div>
+      <div id="auth-success-msg" class="auth-alert-banner success" style="display: none;"></div>
+
+      <!-- Login Form -->
+      <form id="auth-login-form" class="auth-form">
+        <div class="form-group">
+          <label class="form-label" for="login-username">Investigator Username</label>
+          <div class="input-with-icon">
+            <i data-lucide="user" class="input-icon"></i>
+            <input type="text" id="login-username" class="auth-input" placeholder="e.g. admin" required autocomplete="username">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label class="form-label" for="login-password" style="margin-bottom:0;">Passphrase / Password</label>
+            <button type="button" id="btn-auth-demo-fill" class="auth-quick-link" title="Fill seeded admin credentials">
+              Fill Demo Admin
+            </button>
+          </div>
+          <div class="input-with-icon">
+            <i data-lucide="lock" class="input-icon"></i>
+            <input type="password" id="login-password" class="auth-input" placeholder="Enter password" required autocomplete="current-password">
+            <button type="button" class="btn-toggle-password" data-target="login-password" aria-label="Toggle password visibility">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-auth-submit" id="btn-login-submit">
+          <i data-lucide="log-in" style="width:18px;height:18px;"></i>
+          <span>Sign In to Workstation</span>
+        </button>
+
+        <div class="auth-footer-notice">
+          <i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;"></i>
+          <span>Default seeded admin: <strong style="color:#93c5fd;">admin</strong> / <strong style="color:#93c5fd;">ChangeMe123!</strong></span>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="auth-register-form" class="auth-form hidden">
+        <div class="form-group">
+          <label class="form-label" for="register-fullname">Investigator Full Name</label>
+          <div class="input-with-icon">
+            <i data-lucide="badge-check" class="input-icon"></i>
+            <input type="text" id="register-fullname" class="auth-input" placeholder="e.g. Sarah Connor" required autocomplete="name">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="register-username">Desired Username</label>
+          <div class="input-with-icon">
+            <i data-lucide="user" class="input-icon"></i>
+            <input type="text" id="register-username" class="auth-input" placeholder="e.g. sconnor" minlength="3" required autocomplete="username">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="register-password">Strong Password</label>
+          <div class="input-with-icon">
+            <i data-lucide="lock" class="input-icon"></i>
+            <input type="password" id="register-password" class="auth-input" placeholder="At least 8 characters" minlength="8" required autocomplete="new-password">
+            <button type="button" class="btn-toggle-password" data-target="register-password" aria-label="Toggle password visibility">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+          <div class="password-rules-grid">
+            <div id="rule-len" class="rule-chip"><i data-lucide="check" class="rule-icon"></i> 8+ chars</div>
+            <div id="rule-upper" class="rule-chip"><i data-lucide="check" class="rule-icon"></i> Uppercase</div>
+            <div id="rule-lower" class="rule-chip"><i data-lucide="check" class="rule-icon"></i> Lowercase</div>
+            <div id="rule-num" class="rule-chip"><i data-lucide="check" class="rule-icon"></i> Number</div>
+            <div id="rule-special" class="rule-chip"><i data-lucide="check" class="rule-icon"></i> Special (!@#$)</div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-auth-submit" id="btn-register-submit">
+          <i data-lucide="user-plus" style="width:18px;height:18px;"></i>
+          <span>Create Investigator Account</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Session Lock Overlay -->
+  <div id="session-lock-overlay" style="display: none; position: fixed; inset: 0; background: rgba(11, 15, 25, 0.92); backdrop-filter: blur(24px); z-index: 100000; justify-content: center; align-items: center; animation: fadeIn 0.3s ease-out;">
+    <div class="modal-content" style="max-width: 420px; text-align: center; padding: 2.5rem 2rem; box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.7); border: 1px solid rgba(239, 68, 68, 0.3); background: rgba(15, 23, 42, 0.95);">
+      <div style="width: 70px; height: 70px; margin: 0 auto 1.25rem; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(239, 68, 68, 0.3);">
+        <i data-lucide="lock" style="width: 34px; height: 34px; color: #ef4444;"></i>
+      </div>
+      <h2 style="font-size: 1.5rem; margin-bottom: 0.25rem; color: white; font-weight: 700;">Workstation Locked</h2>
+      <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1.5rem;">Session locked due to inactivity. Enter your password to resume.</p>
+
+      <!-- Current Locked User Badge -->
+      <div style="display: flex; align-items: center; gap: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; padding: 0.6rem 1rem; margin-bottom: 1.25rem;">
+        <div id="lock-user-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);">AD</div>
+        <div style="text-align: left; flex: 1; min-width: 0;">
+          <div id="lock-user-name" style="font-size: 0.9rem; font-weight: 600; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Administrator</div>
+          <div style="font-size: 0.75rem; color: #94a3b8;">Active Session</div>
+        </div>
+      </div>
+
+      <div id="lock-unlock-error" class="auth-alert-banner danger" style="display: none; margin-bottom: 1rem; text-align: left; font-size: 0.85rem;"></div>
+
+      <div class="form-group" style="margin-bottom: 1.25rem; text-align: left;">
+        <div class="input-with-icon">
+          <i data-lucide="key" class="input-icon"></i>
+          <input type="password" id="lock-session-password" class="auth-input" placeholder="Enter password to unlock" autocomplete="current-password">
+        </div>
+      </div>
+
+      <button id="btn-unlock-session" class="btn" style="width: 100%; justify-content: center; padding: 0.85rem; font-size: 0.95rem; background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); margin-bottom: 0.75rem;">
+        <i data-lucide="key" style="width:18px;height:18px;"></i>
+        <span>Unlock Session</span>
+      </button>
+
+      <button id="btn-lock-logout" type="button" class="btn btn-secondary" style="width: 100%; justify-content: center; font-size: 0.85rem; padding: 0.6rem; color: #94a3b8; border-color: rgba(255,255,255,0.1);">
+        <i data-lucide="log-out" style="width:16px;height:16px;"></i>
+        <span>Switch Account / Sign Out</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-container"></div>
 
-  <script src="app.js?v=7"></script>
+  <!-- Custom Context Menu -->
+  <div id="custom-context-menu" class="context-menu" style="display: none;">
+    <ul class="context-menu-list">
+      <li class="context-menu-item" id="ctx-send-to-chat">
+        <i data-lucide="message-square" style="width:14px;height:14px;"></i> Send to AI Chat
+      </li>
+      <li class="context-menu-item" id="ctx-add-to-report">
+        <i data-lucide="file-text" style="width:14px;height:14px;"></i> Add to Report
+      </li>
+      <li class="context-menu-item" id="ctx-view-hex">
+        <i data-lucide="code" style="width:14px;height:14px;"></i> View Hex
+      </li>
+    </ul>
+  </div>
+
+  <!-- External Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Application Entry Point -->
+  <script type="module" src="js/app.js?v=20"></script>
 </body>
 </html>

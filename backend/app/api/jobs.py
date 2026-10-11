@@ -55,6 +55,66 @@ def get_case_jobs(request: Request,
     return list(latest_jobs.values())
 
 
+@router.get("/case/{case_id}/stream")
+@limiter.limit(RATE_LIMIT_READ)
+def get_case_jobs_stream(request: Request, 
+    case_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Stream real-time background jobs status for a case file."""
+    import asyncio
+    import json
+    from fastapi.responses import StreamingResponse
+
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    require_case_access(case, current_user)
+
+    async def event_generator():
+        # First ping immediately
+        padding = " " * 1024
+        yield f": {padding}\n\n"
+        await asyncio.sleep(0.1)
+
+        while True:
+            # Check if client disconnected
+            if await request.is_disconnected():
+                break
+
+            # Need to clear session to get fresh DB data
+            db.expire_all()
+            
+            jobs = db.query(ForensicJob).filter(ForensicJob.case_id == case_id).order_by(ForensicJob.created_at.desc()).all()
+            
+            latest_jobs = {}
+            for job in jobs:
+                if job.evidence_id not in latest_jobs:
+                    latest_jobs[job.evidence_id] = job
+            
+            job_dicts = []
+            for job in latest_jobs.values():
+                job_dicts.append({
+                    "id": str(job.id),
+                    "case_id": job.case_id,
+                    "evidence_id": job.evidence_id,
+                    "job_type": job.job_type,
+                    "status": job.status,
+                    "current_stage": job.current_stage,
+                    "progress_percent": job.progress_percent,
+                    "stage_message": job.stage_message
+                })
+                
+            yield f"data: {json.dumps(job_dicts)}\n\n"
+            
+            # Polling delay
+            await asyncio.sleep(2)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+
 @router.get("/{job_id}", response_model=JobStatusResponse)
 @limiter.limit(RATE_LIMIT_READ)
 def get_job_status(request: Request, 

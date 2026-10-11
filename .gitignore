@@ -22,9 +22,17 @@ ENV/
 # Databases & local storage
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite3
+backend/*.db
+backend/*.db-journal
+backend/*.db-wal
+backend/*.db-shm
 backend/app/database/*.db
 backend/app/database/*.db-journal
+backend/app/database/*.db-wal
+backend/app/database/*.db-shm
 
 # Evidence uploads & generated reports
 backend/app/uploads/*
@@ -37,6 +45,7 @@ backend/app/reports/*
 *.log.*
 preview-*.log
 .gemini/
+scratch/
 
 # IDE & OS
 .DS_Store
