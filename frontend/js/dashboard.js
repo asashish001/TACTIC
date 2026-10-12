@@ -51,7 +51,6 @@ export function setupDashboard() {
             document.getElementById('stat-critical-alerts').textContent = data.stats.critical_alerts.toLocaleString();
             document.getElementById('stat-analysis-jobs').textContent = data.stats.analysis_jobs.toLocaleString();
             
-            // Format bytes
             let bytes = data.stats.total_evidence_size;
             let formatted = '0 B';
             if (bytes > 0) {
@@ -144,7 +143,6 @@ export function setupDashboard() {
         }
       }
 
-      // Initialize Charts
       function tryInitCharts() {
         if (typeof Chart === 'undefined') {
           setTimeout(tryInitCharts, 200);
@@ -205,12 +203,12 @@ export function setupDashboard() {
             
             // Generate enough colors for the dynamic labels
             const baseColors = [
-              'rgba(59, 130, 246, 0.8)', // blue
-              'rgba(139, 92, 246, 0.8)', // violet
-              'rgba(16, 185, 129, 0.8)', // emerald
-              'rgba(245, 158, 11, 0.8)', // amber
-              'rgba(239, 68, 68, 0.8)',  // red
-              'rgba(14, 165, 233, 0.8)'  // sky
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(139, 92, 246, 0.8)',
+              'rgba(16, 185, 129, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(239, 68, 68, 0.8)',
+              'rgba(14, 165, 233, 0.8)'
             ];
             const labels = data.charts?.evidence?.labels || ['No Data'];
             const chartData = data.charts?.evidence?.data || [1];

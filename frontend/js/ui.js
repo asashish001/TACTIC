@@ -44,20 +44,17 @@ let activeContextMenuData = null;
 export function setupContextMenu() {
   const menu = document.getElementById('custom-context-menu');
   
-  // Hide menu on document click
   document.addEventListener('click', (e) => {
     if (menu && menu.style.display === 'block') {
       menu.style.display = 'none';
     }
   });
 
-  // Action: Send to AI Chat
   document.getElementById('ctx-send-to-chat')?.addEventListener('click', () => {
     if (!activeContextMenuData) return;
     const chatInput = document.getElementById('chat-input');
     if (chatInput) {
       chatInput.value = `Tell me about ${activeContextMenuData.type}: ${activeContextMenuData.label}`;
-      // Switch to chat view
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       document.getElementById('nav-chat')?.classList.add('active');
       document.querySelectorAll('.view').forEach(v => { v.classList.add('hidden'); v.style.display = 'none'; });
@@ -67,12 +64,10 @@ export function setupContextMenu() {
     }
   });
 
-  // Action: Add to Report
   document.getElementById('ctx-add-to-report')?.addEventListener('click', () => {
     showToast(`Added ${activeContextMenuData?.label} to report`, 'success');
   });
 
-  // Action: View Hex
   document.getElementById('ctx-view-hex')?.addEventListener('click', () => {
     showToast(`Hex viewer opened for ${activeContextMenuData?.label}`, 'info');
   });

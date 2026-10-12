@@ -22,7 +22,6 @@ export function resetIdleTimer() {
     clearTimeout(idleTimer);
   }
 
-  // Only lock if user is authenticated
   if (isAuthenticated()) {
     idleTimer = setTimeout(lockSession, IDLE_TIMEOUT_MS);
   }

@@ -75,6 +75,14 @@ def apply_compatibility_migrations() -> None:
             connection.execute(text(
                 "ALTER TABLE users ADD COLUMN refresh_token_jtis VARCHAR(500) DEFAULT '[]'"
             ))
+        if "totp_secret" not in user_columns:
+            connection.execute(text(
+                "ALTER TABLE users ADD COLUMN totp_secret VARCHAR(64)"
+            ))
+        if "totp_enabled" not in user_columns:
+            connection.execute(text(
+                "ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN NOT NULL DEFAULT 0"
+            ))
         if "review_status" not in finding_columns:
             connection.execute(text(
                 "ALTER TABLE findings ADD COLUMN review_status VARCHAR(20) NOT NULL DEFAULT 'pending'"
@@ -128,7 +136,7 @@ def seed_admin_user() -> None:
         username = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
         admin_user = db.query(User).filter(User.username == username).first()
         if admin_user:
-            return  # already exists, nothing to do
+            return
 
         env_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "ChangeMe123!").strip()
 

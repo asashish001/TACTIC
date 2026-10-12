@@ -37,7 +37,7 @@ if not _secret or _secret in _INSECURE_DEFAULTS:
 SECRET_KEY = _secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 hours
-REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 days for refresh tokens
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 security_bearer = HTTPBearer()
 

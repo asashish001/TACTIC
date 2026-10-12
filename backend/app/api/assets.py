@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 
 router = APIRouter(tags=["Assets"])
 
-_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent  # project root
+_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 
 @router.get("/assets/logo.png")

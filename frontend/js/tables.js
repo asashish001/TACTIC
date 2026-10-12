@@ -166,7 +166,6 @@ export function setupTables() {
     const rows = table.querySelectorAll('tr');
 
     rows.forEach(row => {
-        // Skip the filter row and hidden rows
         if (row.classList.contains('filters-row')) return;
         if (row.style.display === 'none') return;
         

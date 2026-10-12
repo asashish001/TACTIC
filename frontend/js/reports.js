@@ -71,7 +71,6 @@ export function setupReports() {
       return;
     }
     
-    // Disable both buttons during generation
     if (btnGenerateDocx) btnGenerateDocx.disabled = true;
     if (btnGeneratePdf) btnGeneratePdf.disabled = true;
 

@@ -9,13 +9,21 @@ from app.auth.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    get_current_user,
     get_password_hash,
     verify_password,
 )
-from app.config import limiter
+from app.auth.totp import generate_totp_secret, get_totp_uri, verify_totp
+from app.config import RATE_LIMIT_WRITE, limiter
 from app.database.session import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, Token
+from app.schemas.auth import (
+    LoginRequest,
+    Token,
+    TotpDisableRequest,
+    TotpSetupResponse,
+    TotpVerifyRequest,
+)
 from app.schemas.user import UserCreate, UserResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -79,6 +87,21 @@ def login(request: Request, login_in: LoginRequest, db: Session = Depends(get_db
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password."
         )
+
+    # Multi-factor authentication (MFA / TOTP) check
+    if user.totp_enabled:
+        if not login_in.totp_code:
+            return {
+                "access_token": "",
+                "refresh_token": "",
+                "token_type": "bearer",
+                "mfa_required": True,
+            }
+        if not verify_totp(user.totp_secret or "", login_in.totp_code):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid multi-factor authentication (MFA) verification code."
+            )
     
     jti = str(uuid.uuid4())
     _add_refresh_jti(user, jti)
@@ -95,7 +118,8 @@ def login(request: Request, login_in: LoginRequest, db: Session = Depends(get_db
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "mfa_required": False
     }
 
 

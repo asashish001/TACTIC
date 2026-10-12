@@ -22,7 +22,6 @@ async function loadTriageQueue() {
     
     try {
         const data = await api('GET', `/api/analyze/findings/${currentCaseId}`);
-        // Filter only pending findings
         pendingFindings = data.filter(f => f.review_status === 'pending');
         currentFindingIndex = 0;
         
@@ -134,7 +133,6 @@ async function submitReview(findingId, status, direction) {
         
         showToast(`Finding ${status}!`, 'success');
         
-        // Remove from pending list
         pendingFindings.splice(currentFindingIndex, 1);
         updateCount();
         
@@ -146,7 +144,6 @@ async function submitReview(findingId, status, direction) {
     } catch (err) {
         console.error('Review failed:', err);
         showToast('Failed to submit review.', 'error');
-        // Reset card if failed
         card.style.transform = 'none';
         card.style.opacity = '1';
     }

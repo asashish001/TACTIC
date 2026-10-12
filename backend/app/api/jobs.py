@@ -73,13 +73,11 @@ def get_case_jobs_stream(request: Request,
     require_case_access(case, current_user)
 
     async def event_generator():
-        # First ping immediately
         padding = " " * 1024
         yield f": {padding}\n\n"
         await asyncio.sleep(0.1)
 
         while True:
-            # Check if client disconnected
             if await request.is_disconnected():
                 break
 
@@ -108,7 +106,6 @@ def get_case_jobs_stream(request: Request,
                 
             yield f"data: {json.dumps(job_dicts)}\n\n"
             
-            # Polling delay
             await asyncio.sleep(2)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

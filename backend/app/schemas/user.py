@@ -41,6 +41,7 @@ class UserResponse(UserBase):
     role: str
     timezone: str
     created_at: datetime
+    totp_enabled: bool = False
     
     model_config = ConfigDict(from_attributes=True)
 

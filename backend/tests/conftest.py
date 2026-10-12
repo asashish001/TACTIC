@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session, sessionmaker
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.auth.security import create_access_token, get_password_hash
-from app.config import limiter  # Import the global limiter
+from app.config import limiter
 from app.database.session import Base, get_db
 from app.models.case import Case
 from app.models.finding import Finding  # noqa: F401 - register before create_all

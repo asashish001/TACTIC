@@ -100,7 +100,6 @@ export function setupChat() {
                                 textDiv.innerHTML = fullText.replace(/\\n|\n/g, '<br>');
                                 chatMessages.scrollTop = chatMessages.scrollHeight;
                             } else if (data.type === 'done') {
-                                // Stream complete
                             } else if (data.type === 'error') {
                                 textDiv.innerHTML += `<br><br><span style="color: var(--danger);">[Server Error: ${data.message}]</span>`;
                                 chatMessages.scrollTop = chatMessages.scrollHeight;

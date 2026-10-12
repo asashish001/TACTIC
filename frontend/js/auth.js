@@ -204,7 +204,6 @@ export function hideLoginModal() {
 export function updateUserUI() {
   const user = cachedUser;
   
-  // Sidebar elements
   const userContainer = document.getElementById('sidebar-user-profile');
   const userNameEl = document.getElementById('sidebar-user-name');
   const userRoleEl = document.getElementById('sidebar-user-role');
@@ -230,7 +229,6 @@ export function updateUserUI() {
     if (userContainer) userContainer.style.display = 'none';
   }
 
-  // Session lock overlay user info
   const lockUserAvatar = document.getElementById('lock-user-avatar');
   const lockUserName = document.getElementById('lock-user-name');
   if (user) {
@@ -246,7 +244,6 @@ export function updateUserUI() {
     }
   }
 
-  // Settings page profile card
   const settingsUsername = document.getElementById('profile-username');
   const settingsFullName = document.getElementById('profile-fullname');
   const settingsRole = document.getElementById('profile-role');
@@ -263,7 +260,6 @@ export function setupAuth() {
   const modal = document.getElementById('auth-modal');
   if (!modal) return;
 
-  // Tabs
   const tabLogin = document.getElementById('auth-tab-login');
   const tabRegister = document.getElementById('auth-tab-register');
   const formLogin = document.getElementById('auth-login-form');
@@ -290,7 +286,6 @@ export function setupAuth() {
   tabLogin?.addEventListener('click', () => switchTab(true));
   tabRegister?.addEventListener('click', () => switchTab(false));
 
-  // Password visibility toggles
   document.querySelectorAll('.btn-toggle-password').forEach(btn => {
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-target');
@@ -309,7 +304,6 @@ export function setupAuth() {
     });
   });
 
-  // Demo auto-fill button
   const btnDemoFill = document.getElementById('btn-auth-demo-fill');
   if (btnDemoFill) {
     btnDemoFill.addEventListener('click', () => {
@@ -321,7 +315,6 @@ export function setupAuth() {
     });
   }
 
-  // Registration password validator live checks
   const regPasswordInput = document.getElementById('register-password');
   if (regPasswordInput) {
     regPasswordInput.addEventListener('input', () => {
@@ -340,7 +333,6 @@ export function setupAuth() {
     });
   }
 
-  // Login Submit
   formLogin?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (errorMsg) errorMsg.style.display = 'none';
@@ -369,7 +361,6 @@ export function setupAuth() {
       hideLoginModal();
       showToast(`Welcome back, ${user.full_name || user.username}!`, 'success');
 
-      // Refresh cases list or views if available
       if (window.loadCases) window.loadCases();
       if (window.loadDashboard) window.loadDashboard();
       if (window.loadSettings) window.loadSettings();
@@ -388,7 +379,6 @@ export function setupAuth() {
     }
   });
 
-  // Register Submit
   formRegister?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (errorMsg) errorMsg.style.display = 'none';
@@ -444,7 +434,6 @@ export function setupAuth() {
     }
   });
 
-  // Sidebar Logout Button
   const btnLogout = document.getElementById('btn-sidebar-logout');
   if (btnLogout) {
     btnLogout.addEventListener('click', (e) => {
@@ -453,7 +442,6 @@ export function setupAuth() {
     });
   }
 
-  // Sidebar Manual Lock Button
   const btnLockSidebar = document.getElementById('btn-sidebar-lock');
   if (btnLockSidebar) {
     btnLockSidebar.addEventListener('click', (e) => {
@@ -467,7 +455,6 @@ export function setupAuth() {
     });
   }
 
-  // Lock Screen Unlock via Password
   const btnUnlock = document.getElementById('btn-unlock-session');
   const inputUnlockPass = document.getElementById('lock-session-password');
   const unlockError = document.getElementById('lock-unlock-error');
@@ -498,7 +485,6 @@ export function setupAuth() {
 
         await login(cachedUser.username, password);
 
-        // Success - dismiss lock screen
         inputUnlockPass.value = '';
         if (unlockError) unlockError.style.display = 'none';
         const overlay = document.getElementById('session-lock-overlay');
@@ -524,7 +510,6 @@ export function setupAuth() {
     });
   }
 
-  // Lock Screen Switch Account / Logout
   const btnLockLogout = document.getElementById('btn-lock-logout');
   if (btnLockLogout) {
     btnLockLogout.addEventListener('click', () => {
@@ -534,7 +519,6 @@ export function setupAuth() {
     });
   }
 
-  // Settings Change Password Form
   const formChangePass = document.getElementById('form-change-password');
   if (formChangePass) {
     formChangePass.addEventListener('submit', async (e) => {
@@ -587,7 +571,6 @@ export function setupAuth() {
     });
   }
 
-  // Initial check on load
   if (isAuthenticated()) {
     fetchCurrentUser().then(() => {
       hideLoginModal();
