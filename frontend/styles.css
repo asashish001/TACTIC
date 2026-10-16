@@ -228,18 +228,7 @@ select option { background-color: #0f172a; color: white; }
 }
 
 .radar-sweep {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 200%;
-    height: 200%;
-    transform-origin: center;
-    transform: translate(-50%, -50%);
-    background: conic-gradient(from 0deg, transparent 70%, rgba(14, 165, 233, 0.2) 99%, rgba(14, 165, 233, 0.8) 100%);
-    border-radius: 50%;
-    pointer-events: none;
-    animation: radarSpin 4s linear infinite;
-    z-index: 0;
+    display: none !important;
 }
 
 @keyframes radarSpin {
