@@ -1,7 +1,7 @@
 # ROADMAP.md — Delivery Roadmap for T.A.C.T.I.C.
 
 **Project:** T.A.C.T.I.C. (Trace Analysis & Cyber Timeline Investigation Core) — AI Digital Forensics Assistant
-**Companion docs:** `PRD.md` · `design.md` · `CLAUDE.md` · `ROADMAP.md` · `design.md` · `design.md`
+**Companion docs:** `PRD.md` · `design.md` · `CLAUDE.md`
 **Timeline:** July–Dec 2026 (one academic semester, ~24 weeks)
 **Team:** Ashish Bhardwaj (2300344) · Arvinder Singh (2300343) · Ayushi Kumari (2300346) · Balraj Singh (2300349) — guided by Prof. Rupinder Kaur
 
@@ -239,7 +239,7 @@ Build one Extractor per evidence type. Each takes a raw `EvidenceItem` and produ
 - [x] Full security pass: parameterized queries everywhere, no evidence content in logs, session checks on every route **[SEC]**
 - [x] Performance: move Extractor/Analyzer runs to background tasks so upload doesn't block on full analysis (per `design.md` Section 9)
 - [x] Error handling pass: every user-facing failure gives a clear message, not a raw stack trace
-- [x] UI polish: loading states for upload/analysis/report generation, responsive layout check (Bootstrap)
+- [x] UI polish: loading states for upload/analysis/report generation, responsive layout check (Cyber-HUD SPA)
 - [x] End-to-end test: upload evidence → run analysis → view timeline → query assistant → generate report, on one synthetic case
 
 ---

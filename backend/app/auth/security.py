@@ -36,8 +36,15 @@ if not _secret or _secret in _INSECURE_DEFAULTS:
 
 SECRET_KEY = _secret
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 hours
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+try:
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 8)))
+except ValueError:
+    ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8
+
+try:
+    REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+except ValueError:
+    REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 security_bearer = HTTPBearer()
 

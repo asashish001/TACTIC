@@ -18,11 +18,11 @@ Full requirements live in `PRD.md` (or `TACTIC_PRD.docx`) — read it before imp
 
 | Layer | Required technology |
 |---|---|
-| Frontend | HTML, CSS, JavaScript, Bootstrap |
-| Backend | FastAPI (Python) |
-| AI / ML | PyTorch, Scikit-learn, Transformers (Hugging Face) |
-| Database | SQLite |
-| Core language | Python 3.9+ |
+| Frontend | Vanilla HTML5, Modern CSS3 (Cyber-HUD design system), JavaScript (ES6+ modular SPA), Cytoscape.js, Chart.js, Lucide Icons |
+| Backend | FastAPI (Python), Uvicorn, SlowAPI rate limiting |
+| AI / ML | PyTorch, Scikit-learn, Transformers (Hugging Face), Sentence-Transformers |
+| Database | SQLite (SQLAlchemy 2.0 ORM with cascade integrity) |
+| Core language | Python 3.10+ (tested through 3.13) |
 | Dev environment | VS Code |
 
 Do not introduce a new database engine, backend framework, or ML framework without explicit approval — this is an academic major project with a fixed stack the team is graded against.
@@ -75,11 +75,11 @@ TACTIC's credibility depends on not corrupting or silently mutating evidence.
 
 ## 6. Coding standards
 
-- **Python**: follow PEP 8. Type hints on all new function signatures. Use `pydantic` models for FastAPI request/response schemas — no bare dicts crossing the API boundary.
-- **FastAPI**: one router per functional area (evidence, analysis, timeline, reports, auth). Don't dump every endpoint into a single `main.py`.
-- **AI Engine code**: keep model loading, inference, and explanation logic in separate, testable functions. No inference code embedded inside route handlers.
-- **Frontend**: keep JS unobtrusive — no inline `onclick=` handlers in new code, use Bootstrap components rather than hand-rolled CSS where a Bootstrap component already covers the case.
-- **Secrets/config**: never hardcode file paths, API keys, or model paths — use environment variables or a config file that's excluded from version control.
+- **Python**: follow PEP 8. Type hints on all function signatures. Use `pydantic` v2 models for FastAPI request/response schemas — no bare dicts crossing the API boundary.
+- **FastAPI**: maintain modular architecture with 21 domain routers (`backend/app/api/`) and 15 SQLAlchemy 2.0 ORM models (`backend/app/models/`). Don't dump endpoints into a single file.
+- **AI Engine code**: keep model loading, inference, and explanation logic in separate, testable functions (`backend/app/ai/`). No inference code embedded inside route handlers.
+- **Frontend**: maintain the Cyber-HUD theme using CSS design tokens/custom properties in `styles.css`. Keep JS modular across domain modules in `frontend/js/` (e.g. `auth.js`, `cases.js`, `evidence.js`, `triage.js`, `timeline.js`, `network.js`, `chat.js`).
+- **Secrets/config**: never hardcode file paths, API keys, or model paths — use environment variables or `.env` handled via `python-dotenv`.
 - **Naming**: match the domain language already used in the PRD (evidence, artifact, correlation, timeline, threat score, report) — don't invent parallel terminology for the same concept.
 
 ---

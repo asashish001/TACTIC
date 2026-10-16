@@ -181,7 +181,7 @@ TACTIC follows a systematic six-step methodology to automate and simplify digita
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Frontend | HTML, CSS, JavaScript, Bootstrap | Responsive, user-friendly web interface. |
+| Frontend | Vanilla HTML5, CSS3 (Cyber-HUD design system), JavaScript SPA | Responsive, high-performance forensic workstation interface with Chart.js & Cytoscape.js. |
 | Backend | FastAPI (Python) | Handles APIs, business logic, and secure data processing. |
 | AI / ML | PyTorch, Scikit-learn, Transformers (Hugging Face) | Deep learning, traditional ML, and NLP / LLM capabilities. |
 | Database | SQLite | Lightweight, reliable storage for investigation data and metadata. |
@@ -374,7 +374,7 @@ The FastAPI application layer that handles requests, orchestrates the AI Engine,
 The AI Engine component that links artifacts/findings across evidence items into timeline events.
 
 **Frontend**
-The HTML/CSS/JavaScript/Bootstrap web interface investigators use to upload evidence, review results, and read reports.
+The Vanilla HTML5/CSS3/JavaScript Cyber-HUD web interface investigators use to upload evidence, review results, and read reports.
 
 **Report module**
 The component that formats AI Engine output (findings, timeline, threat score) into the final structured, exportable forensic report. Does not perform its own analysis — formatting only.

@@ -32,11 +32,18 @@ Key environment variables:
 | Variable | Description | Default |
 | :--- | :--- | :--- |
 | `SECRET_KEY` | JWT signing secret key | *(auto-generated if unset)* |
+| `JWT_SECRET_KEY` | Dedicated refresh token signing secret | *(uses `SECRET_KEY` if unset)* |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime in minutes | `480` (8 hours) |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime in days | `7` |
+| `CORS_ORIGINS` | Allowed origins (comma-separated) | `http://localhost:8000,http://127.0.0.1:8000` |
+| `MAX_UPLOAD_BYTES` | Maximum upload file size in bytes | `524288000` (500 MB) |
+| `DEFAULT_TIMEZONE` | Normalization fallback timezone | `UTC` |
 | `DATABASE_URL` | SQLite database URI | `sqlite:///app/database/forensics.db` |
 | `DEFAULT_ADMIN_USERNAME` | Default admin username | `admin` |
 | `DEFAULT_ADMIN_PASSWORD` | Default admin password | `ChangeMe123!` |
 | `AI_PROVIDER` | AI provider for chat (`gemini`, `openai`, `ollama`, `disabled`) | `disabled` |
 | `NLP_MODEL_NAME` | HuggingFace NER model (`dslim/bert-base-NER` or `fallback`) | `dslim/bert-base-NER` |
+| `THREAT_INTEL_REMOTE_LOOKUPS` | Enable external threat intelligence lookups | `false` |
 
 ### 3. Launch Application
 
@@ -182,19 +189,22 @@ AI Digital Forensics Assistant/
 ├── requirements.txt             # Root requirements pointer (-r backend/requirements.txt)
 │
 ├── Special Docs/                # Project documentation, design, and roadmaps
+│   ├── CLAUDE.md                # Agent rules, architecture invariants, & standards
 │   ├── PRD.md                   # Product Requirements Document
-│   ├── ROADMAP.md               # Future development plans
+│   ├── ROADMAP.md               # Future development plans & milestones
 │   └── design.md                # System design and architecture details
 │
 ├── backend/                     # Backend application root
 │   ├── Dockerfile               # Production container definition (Python 3.11-slim)
+│   ├── migrate.py               # Standalone database migration & setup helper
+│   ├── mypy.ini                 # Static type checking configuration
 │   ├── pytest.ini               # Pytest configuration & test markers
 │   ├── requirements.txt         # Core dependencies (FastAPI, PyTorch, Transformers, etc.)
 │   │
 │   ├── app/                     # Application source package
 │   │   ├── ai/                  # AI models (threat classifier, anomaly detector, NER, XAI)
 │   │   ├── api/                 # 21 modular FastAPI routers (auth, evidence, analysis, etc.)
-│   │   ├── auth/                # JWT security, password hashing, RBAC role checkers
+│   │   ├── auth/                # JWT security, TOTP MFA, password hashing, RBAC role checkers
 │   │   ├── config.py            # Global application settings & rate limits
 │   │   ├── database/            # SQLAlchemy session management & forensics.db
 │   │   ├── main.py              # ASGI application bootstrap & middleware
@@ -206,7 +216,7 @@ AI Digital Forensics Assistant/
 │   │   ├── uploads/             # Case-isolated evidence disk vault
 │   │   └── utils/               # PDF/Word generators and formatting helpers
 │   │
-│   └── tests/                   # Automated test suite (114+ pytest test cases)
+│   └── tests/                   # Automated test suite (115+ automated tests passing 100%)
 │       ├── conftest.py          # Shared fixtures, in-memory DB, offline test settings
 │       ├── test_auth_endpoints.py # Registration, login, token refresh, and logout tests
 │       ├── test_refresh_token_rotation.py # Token rotation & theft detection tests
@@ -227,6 +237,8 @@ AI Digital Forensics Assistant/
 │       ├── auth.js              # Token management, login portal, user state
 │       ├── api.js               # Authenticated REST client with auto-refresh rotation
 │       ├── session.js           # Idle timer & workstation lock manager
+│       ├── state.js             # Reactive global state store
+│       ├── tables.js            # Column-level data filtering & sorting
 │       ├── cases.js             # Case lifecycle management
 │       ├── evidence.js          # Ingestion & file streaming
 │       ├── dashboard.js         # Forensic overview metrics & Chart.js
@@ -240,11 +252,13 @@ AI Digital Forensics Assistant/
 │       └── ui.js                # Toasts, context menus, and DOM utilities
 │
 ├── scripts/                     # Operational & dependency audit scripts
-│   └── audit-deps.sh
+│   ├── audit-deps.sh
+│   └── seed_network.py
 │
 └── test_data/                   # Sample forensic artifacts for testing
     ├── browser_bookmarks.json
     ├── chrome_120.0.1.log
+    ├── firewall_traffic.csv
     ├── invoice.pdf.exe
     └── network_observations.log
 ```
@@ -288,6 +302,9 @@ Interactive Swagger documentation is available at **`http://127.0.0.1:8000/docs`
 | `/api/auth/logout` | POST | Public | Invalidate refresh token and terminate session |
 | `/api/users/me` | GET | Authenticated | Retrieve active investigator profile |
 | `/api/users/me/change-password` | POST | Authenticated | Change investigator passphrase |
+| `/api/auth/totp/setup` | POST | Authenticated | Generate TOTP MFA secret & provisioning URI |
+| `/api/auth/totp/verify` | POST | Authenticated | Confirm TOTP MFA token and activate protection |
+| `/api/auth/totp/disable` | POST | Authenticated | Disable TOTP MFA with current password |
 | `/api/cases` | GET/POST | Analyst | List cases or create a new case |
 | `/api/cases/{id}` | GET/PUT/DELETE | Analyst | Retrieve, update, or cascade-delete a case |
 | `/api/evidence` | GET | Analyst | Paginated evidence items by case |
