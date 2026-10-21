@@ -140,7 +140,66 @@ body {
 .btn-secondary { background-color: transparent; border: 1px solid var(--border-color); }
 .btn-secondary:hover { background-color: rgba(255, 255, 255, 0.1); box-shadow: none; }
 
-.table-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 1rem; overflow-x: auto; overflow-y: auto; max-height: 65vh; backdrop-filter: blur(10px); }
+.table-container { 
+  background: var(--bg-card); 
+  border: 1px solid var(--border-color); 
+  border-radius: 1rem; 
+  overflow-x: auto; 
+  overflow-y: auto; 
+  max-height: 65vh; 
+  backdrop-filter: blur(10px); 
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.5) rgba(15, 23, 42, 0.7);
+}
+
+.table-container::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.table-container::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.7);
+  border-radius: 9999px;
+}
+.table-container::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.5);
+  border-radius: 9999px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.8);
+}
+
+/* Explicit Horizontal Scroll Container with High-Visibility Scrollbar */
+.table-horizontal-scroll {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  max-height: none !important;
+  display: block;
+  width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 rgba(15, 23, 42, 0.8);
+  padding-bottom: 0.5rem;
+}
+.table-horizontal-scroll::-webkit-scrollbar {
+  height: 10px !important;
+  width: 10px !important;
+  display: block !important;
+}
+.table-horizontal-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.table-horizontal-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa) !important;
+  border-radius: 9999px !important;
+  border: 2px solid rgba(15, 23, 42, 0.8) !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
+}
+.table-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+  background: #60a5fa !important;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.8) !important;
+}
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 1rem 1.5rem; text-align: left; }
 th { background: rgba(15, 23, 42, 0.98); color: var(--text-muted); font-weight: 500; text-transform: uppercase; font-size: 0.75rem; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px); }

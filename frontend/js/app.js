@@ -107,6 +107,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item.getAttribute('data-view') === 'timeline' && window.loadTimeline) {
             window.loadTimeline();
         }
+
+        if (item.getAttribute('data-view') === 'evidence') {
+            if (window.loadEvidence) window.loadEvidence();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        if (item.getAttribute('data-view') === 'settings') {
+            if (window.loadSettings) window.loadSettings();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
       }
     });
   });

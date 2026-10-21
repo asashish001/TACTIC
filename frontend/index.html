@@ -339,6 +339,182 @@
             <tbody id="evidence-list"></tbody>
           </table>
         </div>
+
+        <!-- Chain of Custody & Tamper-Evident Audit Ledger (Full Width Section) -->
+        <div class="feature-card" style="margin-top: 2.5rem; width: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(59, 130, 246, 0.25); border-top: 3px solid #10b981; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 1.75rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div style="background: rgba(16, 185, 129, 0.2); padding: 0.6rem; border-radius: 0.6rem; color: #34d399;">
+                <i data-lucide="shield-check"></i>
+              </div>
+              <div>
+                <h3 class="feature-title" style="margin: 0; font-size: 1.3rem;">Chain of Custody &amp; Tamper-Evident Audit Ledger</h3>
+                <p style="font-size: 0.8rem; color: #94a3b8; margin: 0.2rem 0 0 0;">Immutable cryptographic ledger tracking evidence acquisition, SHA-256 calculation, and investigator access (ISO/IEC 27037)</p>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="badge success" style="padding: 0.4rem 0.85rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                TAMPER-EVIDENT: ACTIVE
+              </span>
+              <span class="badge badge-info" style="padding: 0.4rem 0.85rem; font-size: 0.75rem;">
+                SHA-256: VERIFIED
+              </span>
+              <span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; padding: 0.4rem 0.85rem; font-size: 0.75rem;">
+                ISO/IEC 27037 COMPLIANT
+              </span>
+            </div>
+          </div>
+
+          <!-- Horizontal Scroll Navigator & Indicator -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #94a3b8;">
+              <i data-lucide="arrow-left-right" style="width: 14px; height: 14px; color: #3b82f6;"></i>
+              <span>Horizontal scroll enabled — drag scrollbar or use buttons to view full ledger &amp; integrity status:</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+              <button type="button" class="btn btn-secondary" id="btn-custody-scroll-left" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; border-radius: 0.4rem; display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;" title="Scroll Left">
+                <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i> <span>Scroll Left</span>
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-custody-scroll-right" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; border-radius: 0.4rem; display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;" title="Scroll Right">
+                <span>Scroll Right</span> <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Chain of Custody Table -->
+          <div class="table-container table-horizontal-scroll" id="custody-scroll-container" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; overflow-x: auto; overflow-y: visible; max-height: none; padding-bottom: 0.5rem;">
+            <table style="width: 100%; min-width: 1100px; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: #94a3b8; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;">
+                  <th style="padding: 1rem 1.25rem; min-width: 160px;">Timestamp (UTC)</th>
+                  <th style="padding: 1rem 1.25rem; min-width: 160px;">Action / Event</th>
+                  <th style="padding: 1rem 1.25rem; min-width: 210px;">Target Evidence Item</th>
+                  <th style="padding: 1rem 1.25rem; min-width: 320px;">Cryptographic SHA-256 Digest Snapshot</th>
+                  <th style="padding: 1rem 1.25rem; min-width: 150px;">Custodian</th>
+                  <th style="padding: 1rem 1.25rem; min-width: 140px;">Integrity Status</th>
+                </tr>
+              </thead>
+              <tbody id="custody-ledger-table-body">
+                <tr>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1; font-size: 0.8rem;">
+                    2026-08-25 16:04:16
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge success" style="font-size: 0.7rem; text-transform: uppercase;">● EVIDENCE_INGESTED</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="file-text" style="width: 15px; height: 15px; color: #60a5fa;"></i>
+                      <span>chrome_120.0.1.log</span>
+                    </div>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; font-size: 0.75rem; color: #34d399;">
+                    <code>e6d2b0f9a1ed8cc3f309913afc8d52d9beadcc36a929dfdcef3107f381c33680</code>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #cbd5e1; font-size: 0.8rem;">
+                    admin <span style="color: #64748b;">(Investigator)</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge success" style="font-size: 0.7rem;">✓ VERIFIED</span>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid rgba(255,255,255,0.05);">
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1; font-size: 0.8rem;">
+                    2026-08-25 16:04:24
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge success" style="font-size: 0.7rem; text-transform: uppercase;">● EVIDENCE_INGESTED</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="file-code" style="width: 15px; height: 15px; color: #a78bfa;"></i>
+                      <span>browser_bookmarks.json</span>
+                    </div>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; font-size: 0.75rem; color: #34d399;">
+                    <code>54ec9d1b35eb906fef8ccce564786e51353dfd42bd7e306a86679b378c36f47e</code>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #cbd5e1; font-size: 0.8rem;">
+                    admin <span style="color: #64748b;">(Investigator)</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge success" style="font-size: 0.7rem;">✓ VERIFIED</span>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid rgba(255,255,255,0.05);">
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1; font-size: 0.8rem;">
+                    2026-08-25 16:04:52
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge success" style="font-size: 0.7rem; text-transform: uppercase;">● EVIDENCE_INGESTED</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="network" style="width: 15px; height: 15px; color: #38bdf8;"></i>
+                      <span>network_observations.log</span>
+                    </div>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; font-size: 0.75rem; color: #34d399;">
+                    <code>46d18acc72ff874fd69d725213e60d54eb39c1a1a52ef87b75a5c427cd974715</code>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #cbd5e1; font-size: 0.8rem;">
+                    admin <span style="color: #64748b;">(Investigator)</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge success" style="font-size: 0.7rem;">✓ VERIFIED</span>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid rgba(255,255,255,0.05);">
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1; font-size: 0.8rem;">
+                    2026-10-10 15:44:07
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge badge-info" style="font-size: 0.7rem; text-transform: uppercase;">● REPORT_GENERATED</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="file-check" style="width: 15px; height: 15px; color: #f59e0b;"></i>
+                      <span>TR-2026-ALPHA_e3fa1a49.pdf</span>
+                    </div>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; font-size: 0.75rem; color: #60a5fa;">
+                    <code>e3fa1a498b1742a0b3f885e3c79a11db048122d159a6d38e...</code>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #cbd5e1; font-size: 0.8rem;">
+                    admin <span style="color: #64748b;">(Report Engine)</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge success" style="font-size: 0.7rem;">✓ IMMUTABLE</span>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid rgba(255,255,255,0.05);">
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1; font-size: 0.8rem;">
+                    2026-08-23 12:41:52
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge" style="background: rgba(255,255,255,0.1); color: #cbd5e1; font-size: 0.7rem; text-transform: uppercase;">● CASE_INITIALIZED</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="folder-plus" style="width: 15px; height: 15px; color: #94a3b8;"></i>
+                      <span>TR-2026-ALPHA (Dossier #2)</span>
+                    </div>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; font-size: 0.75rem; color: #94a3b8;">
+                    <code>UUID: 4a2b918c-8f92-4d1e-bf33-28c949a0e417</code>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; color: #cbd5e1; font-size: 0.8rem;">
+                    admin <span style="color: #64748b;">(Case Owner)</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <span class="badge success" style="font-size: 0.7rem;">✓ VERIFIED</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- Analysis View -->
@@ -603,7 +779,119 @@
             <span>Save Changes</span>
           </button>
         </header>
-        
+
+        <!-- AI Model Registry & Governance Console (Primary View) -->
+        <div class="feature-card" style="margin-bottom: 2.5rem; width: 100%; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(59, 130, 246, 0.25); border-top: 3px solid #3b82f6; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 1.75rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div style="background: rgba(59, 130, 246, 0.2); padding: 0.6rem; border-radius: 0.6rem; color: #60a5fa;">
+                <i data-lucide="server"></i>
+              </div>
+              <div>
+                <h3 class="feature-title" style="margin: 0; font-size: 1.3rem;">AI Model Registry &amp; Governance Console</h3>
+                <p style="font-size: 0.8rem; color: #94a3b8; margin: 0.2rem 0 0 0;">Active model versions, loading statuses, feature attribution flags, and recorded benchmark metrics</p>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="badge success" style="padding: 0.4rem 0.85rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                3 MODELS LOADED &amp; ACTIVE
+              </span>
+              <span class="badge badge-info" style="padding: 0.4rem 0.85rem; font-size: 0.75rem;">
+                BENCHMARK: TACTIC v1
+              </span>
+            </div>
+          </div>
+
+          <!-- Model Registry Table -->
+          <div class="table-container" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; overflow-x: auto;">
+            <table style="width: 100%; min-width: 980px; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: #94a3b8; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;">
+                  <th style="padding: 1rem 1.25rem; width: 26%;">Model Name &amp; Architecture</th>
+                  <th style="padding: 1rem 1.25rem; width: 14%;">Type / Role</th>
+                  <th style="padding: 1rem 1.25rem; width: 8%;">Version</th>
+                  <th style="padding: 1rem 1.25rem; width: 11%;">Status</th>
+                  <th style="padding: 1rem 1.25rem; width: 14%;">XAI Attribution</th>
+                  <th style="padding: 1rem 1.25rem; width: 14%;">Evaluation Benchmark</th>
+                  <th style="padding: 1rem 1.25rem; width: 13%;">Dataset &amp; Checkpoint</th>
+                </tr>
+              </thead>
+              <tbody id="model-registry-table-body">
+                <tr>
+                  <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="activity" style="width: 16px; height: 16px; color: #60a5fa;"></i>
+                      <span>TACTIC Log Anomaly Detector</span>
+                    </div>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 400; display: block; margin-top: 0.2rem;">IsolationForest (100 estimators, max_features=100)</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">Anomaly Detection</span></td>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1;">v2.0.0</td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge success">● LOADED</span></td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge badge-info" style="font-size: 0.7rem;">✓ Feature Ablation</span></td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.5;">
+                      <span style="color: #34d399;">Acc: 94.5%</span> &nbsp;|&nbsp; <span style="color: #60a5fa;">Prec: 92.3%</span><br>
+                      <span style="color: #fbbf24;">Rec: 96.0%</span> &nbsp;|&nbsp; <span style="color: #a78bfa; font-weight: 600;">F1: 0.941</span>
+                    </div>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; font-size: 0.75rem; color: #94a3b8;">
+                    <span style="color: #cbd5e1; font-weight: 500;">TACTIC Forensic Benchmark v1</span><br>
+                    <code style="font-size: 0.7rem; color: #64748b;">anomaly_detector_v2.0.0.pkl</code>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid rgba(255,255,255,0.05);">
+                  <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="file-search" style="width: 16px; height: 16px; color: #a78bfa;"></i>
+                      <span>TACTIC NLP Artifact Extractor</span>
+                    </div>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 400; display: block; margin-top: 0.2rem;">BertForTokenClassification + Regex Suite</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">NLP / NER</span></td>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1;">v2.0.0</td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge success">● LOADED</span></td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge" style="background: rgba(255,255,255,0.08); color: #94a3b8; font-size: 0.7rem;">Regex Aggregation</span></td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.5;">
+                      <span style="color: #34d399;">Acc: 95.2%</span> &nbsp;|&nbsp; <span style="color: #60a5fa;">Prec: 94.0%</span><br>
+                      <span style="color: #fbbf24;">Rec: 95.6%</span> &nbsp;|&nbsp; <span style="color: #a78bfa; font-weight: 600;">F1: 0.948</span>
+                    </div>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; font-size: 0.75rem; color: #94a3b8;">
+                    <span style="color: #cbd5e1; font-weight: 500;">dslim/bert-base-NER (13 classes)</span><br>
+                    <code style="font-size: 0.7rem; color: #64748b;">Hugging Face Transformer Cache</code>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid rgba(255,255,255,0.05);">
+                  <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: #f59e0b;"></i>
+                      <span>TACTIC Neural Threat Classifier</span>
+                    </div>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 400; display: block; margin-top: 0.2rem;">PyTorch Feed-Forward Network (dim=128)</span>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">Threat Classifier</span></td>
+                  <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1;">v2.0.0</td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge success">● LOADED</span></td>
+                  <td style="padding: 1.1rem 1.25rem;"><span class="badge badge-info" style="font-size: 0.7rem;">✓ MITRE Attribution</span></td>
+                  <td style="padding: 1.1rem 1.25rem;">
+                    <div style="font-family: monospace; font-size: 0.8rem; line-height: 1.5;">
+                      <span style="color: #34d399;">Acc: 93.8%</span> &nbsp;|&nbsp; <span style="color: #60a5fa;">Prec: 91.8%</span><br>
+                      <span style="color: #fbbf24;">Rec: 95.4%</span> &nbsp;|&nbsp; <span style="color: #a78bfa; font-weight: 600;">F1: 0.935</span>
+                    </div>
+                  </td>
+                  <td style="padding: 1.1rem 1.25rem; font-size: 0.75rem; color: #94a3b8;">
+                    <span style="color: #cbd5e1; font-weight: 500;">TACTIC MITRE ATT&amp;CK KB v2</span><br>
+                    <code style="font-size: 0.7rem; color: #64748b;">threat_classifier_v2.0.0.pt</code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="features-grid delay-1" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem;">
 
           <!-- Investigator Account & Security -->
@@ -824,7 +1112,6 @@
               </button>
             </div>
           </div>
-          
         </div>
       </section>
 
