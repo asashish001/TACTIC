@@ -2,26 +2,28 @@ if (typeof lucide !== 'undefined') {
   lucide.createIcons();
 }
 
-import { currentCaseId } from './state.js?v=30';
-import { setupCases } from './cases.js?v=30';
-import { setupEvidence } from './evidence.js?v=31';
-import { setupChat } from './chat.js?v=31';
-import { setupDashboard } from './dashboard.js?v=30';
-import { setupAnalysis } from './analysis.js?v=31';
-import { setupTimeline } from './timeline.js?v=30';
-import { setupNetwork } from './network.js?v=31';
-import { setupTriage } from './triage.js?v=30';
-import { setupReports } from './reports.js?v=30';
-import { setupSettings } from './settings.js?v=30';
-import { setupTables } from './tables.js?v=30';
-import { setupContextMenu } from './ui.js?v=31';
-import { setupSession } from './session.js?v=2';
-import { setupAuth } from './auth.js?v=1';
+import { currentCaseId } from './state.js?v=20261021_4';
+import { setupCases } from './cases.js?v=20261021_4';
+import { setupEvidence } from './evidence.js?v=20261021_4';
+import { setupChat } from './chat.js?v=20261021_4';
+import { setupDashboard } from './dashboard.js?v=20261021_4';
+import { setupAnalysis } from './analysis.js?v=20261021_4';
+import { setupTimeline } from './timeline.js?v=20261021_4';
+import { setupNetwork } from './network.js?v=20261021_4';
+import { setupTriage } from './triage.js?v=20261021_4';
+import { setupReports } from './reports.js?v=20261021_4';
+import { setupSettings } from './settings.js?v=20261021_4';
+import { setupTables } from './tables.js?v=20261021_4';
+import { setupContextMenu } from './ui.js?v=20261021_4';
+import { setupSession } from './session.js?v=20261021_4';
+import { setupAuth } from './auth.js?v=20261021_4';
+import { setupCertificateModal } from './certificate.js?v=20261021_4';
 
 document.addEventListener('DOMContentLoaded', () => {
   setupAuth();
   setupSession();
   setupContextMenu();
+  setupCertificateModal();
   setupDashboard();
   setupAnalysis();
   setupTimeline();
@@ -120,6 +122,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  const topNav = document.querySelector('.topbar-nav');
+  if (topNav) {
+    topNav.addEventListener('scroll', () => {
+      if (topNav.scrollLeft !== 0) topNav.scrollLeft = 0;
+    }, { passive: true });
+    topNav.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaX) > 0) topNav.scrollLeft = 0;
+    }, { passive: true });
+  }
 
   const roleSelector = document.getElementById('role-selector');
   if (roleSelector) {

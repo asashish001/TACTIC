@@ -1,61 +1,23 @@
 import { api, jwtToken } from './api.js?v=2';
 import { renderEmptyState, showToast, showContextMenu } from './ui.js?v=31';
 import { currentCaseId, setCurrentCaseId, allCases } from './state.js';
+import { openEvidenceCertificate } from './certificate.js?v=2';
+
+const evidenceMap = new Map();
 
 export function setupEvidence() {
     const evidenceList = document.getElementById('evidence-list');
     if (evidenceList) {
         evidenceList.addEventListener('click', async (e) => {
-            const link = e.target.closest('.evidence-link');
+            const link = e.target.closest('.evidence-link, .btn-cert-open, .btn-raw-open');
             if (link) {
                 e.preventDefault();
                 const id = link.getAttribute('data-id');
-                const filename = link.getAttribute('data-filename');
-
-                const newWindow = window.open('', '_blank');
-                if (newWindow) {
-                    newWindow.document.write('<html><head><title>' + filename + '</title></head><body style="font-family: monospace; white-space: pre-wrap; word-wrap: break-word;">Loading file...</body></html>');
+                const evItem = evidenceMap.get(String(id));
+                if (evItem) {
+                    openEvidenceCertificate(evItem);
                 }
-
-                try {
-                    const response = await fetch(`/api/evidence/download/${id}`, {
-                        headers: { 'Authorization': `Bearer ${jwtToken}` }
-                    });
-                    if (!response.ok) throw new Error('Failed to download');
-
-                    const ext = filename.split('.').pop().toLowerCase();
-                    const textExtensions = ['csv', 'txt', 'log', 'md', 'json', 'py', 'js', 'xml', 'ini', 'cfg'];
-
-                    if (textExtensions.includes(ext)) {
-                        const text = await response.text();
-                        if (newWindow) {
-                            newWindow.document.open();
-                            newWindow.document.write('<html><head><title>' + filename + '</title></head><body style="font-family: monospace; white-space: pre-wrap; word-wrap: break-word;">' + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</body></html>');
-                            newWindow.document.close();
-                        }
-                    } else {
-                        let blob = await response.blob();
-                        let mimeType = 'application/octet-stream';
-                        if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
-                            mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-                        } else if (ext === 'pdf') {
-                            mimeType = 'application/pdf';
-                        }
-                        blob = new Blob([blob], { type: mimeType });
-                        const url = window.URL.createObjectURL(blob);
-                        if (newWindow) {
-                            newWindow.location.href = url;
-                        }
-                        setTimeout(() => window.URL.revokeObjectURL(url), 15000);
-                    }
-                } catch (err) {
-                    if (newWindow) {
-                        newWindow.document.open();
-                        newWindow.document.write('Error opening file: ' + err.message);
-                        newWindow.document.close();
-                    }
-                    console.error('Error opening file:', err);
-                }
+                return;
             }
         });
     }
@@ -120,17 +82,29 @@ export function setupEvidence() {
                     else if (docExts.includes(ext)) documents++;
                     else documents++;
                     
+                    evidenceMap.set(String(ev.id), ev);
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${ev.id}</td>
-                        <td><a href="#" class="evidence-link" data-id="${ev.id}" data-filename="${ev.filename}" style="color: var(--primary); text-decoration: underline; cursor: pointer;">${ev.filename}</a></td>
-                        <td>${ev.detected_mime || ev.extension || 'Unknown'}</td>
-                        <td>${formatBytes(ev.file_size)}</td>
-                        <td><span class="badge success">Processed</span></td>
                         <td>
-                            <button class="btn btn-icon context-btn" aria-label="More Options" style="background: transparent; border: none; padding: 0.25rem; color: var(--text-muted);">
-                                <i data-lucide="more-vertical" style="width: 16px; height: 16px;"></i>
-                            </button>
+                            <a href="#" class="evidence-link" data-id="${ev.id}" data-filename="${ev.filename}" title="Click to open raw evidence file" style="color: var(--accent); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+                                <i data-lucide="file-text" style="width: 15px; height: 15px; color: var(--accent);"></i>
+                                <span style="text-decoration: underline;">${ev.filename}</span>
+                            </a>
+                        </td>
+                        <td><span class="badge" style="font-size: 0.72rem; background: #f1f5f9; color: var(--text-secondary);">${ev.detected_mime || ev.extension || 'Unknown'}</span></td>
+                        <td>${formatBytes(ev.file_size)}</td>
+                        <td><span class="badge success" style="font-size: 0.72rem;">● Processed</span></td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                <button class="btn btn-sm btn-raw-open" data-id="${ev.id}" title="Inspect Raw Evidence Payload" style="padding: 0.25rem 0.55rem; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.25rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; cursor: pointer; border-radius: 4px;">
+                                    <i data-lucide="file-code" style="width: 13px; height: 13px;"></i>
+                                    <span>Raw File</span>
+                                </button>
+                                <button class="btn btn-icon context-btn" aria-label="More Options" style="background: transparent; border: none; padding: 0.25rem; color: var(--text-muted); cursor: pointer;">
+                                    <i data-lucide="more-vertical" style="width: 16px; height: 16px;"></i>
+                                </button>
+                            </div>
                         </td>
                     `;
                     const btn = tr.querySelector('.context-btn');
@@ -173,22 +147,22 @@ export function setupEvidence() {
                     const dateStr = (r.occurred_at || '').slice(0, 19).replace('T', ' ');
                     const isIngest = (r.action || '').includes('ingested') || (r.action || '').includes('upload');
                     const isReport = (r.action || '').includes('report');
-                    const badgeStyle = isIngest ? 'background: rgba(34, 197, 94, 0.1); color: #34d399; border: 1px solid rgba(34, 197, 94, 0.2);' : (isReport ? 'background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2);' : 'background: rgba(255,255,255,0.08); color: #cbd5e1;');
-                    const hashDisplay = r.hash_snapshot ? `<code style="color: #34d399;">${r.hash_snapshot}</code>` : `<code style="color: #64748b; font-size: 0.7rem;">UUID: ${r.details?.report_id ? 'REPORT-' + r.details.report_id : 'HASH_VERIFIED'}</code>`;
+                    const badgeStyle = isIngest ? 'background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;' : (isReport ? 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;' : 'background: #f1f5f9; color: var(--text-secondary);');
+                    const hashDisplay = r.hash_snapshot ? `<code style="color: #16a34a;">${r.hash_snapshot}</code>` : `<code style="color: #64748b; font-size: 0.7rem;">UUID: ${r.details?.report_id ? 'REPORT-' + r.details.report_id : 'HASH_VERIFIED'}</code>`;
                     const fileMatch = r.description ? (r.description.match(/'([^']+)'/) || [])[1] : null;
                     const itemLabel = fileMatch || (r.action === 'case_opened' ? 'Case Dossier' : 'Forensic Record');
                     return `
-                    <tr style="border-top: 1px solid rgba(255,255,255,0.05);">
-                      <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: #cbd5e1; font-size: 0.8rem;">${dateStr}</td>
+                    <tr style="border-top: 1px solid var(--border-subtle);">
+                      <td style="padding: 1.1rem 1.25rem; font-family: monospace; color: var(--text-secondary); font-size: 0.8rem;">${dateStr}</td>
                       <td style="padding: 1.1rem 1.25rem;"><span class="badge" style="font-size: 0.7rem; text-transform: uppercase; ${badgeStyle}">● ${r.action}</span></td>
-                      <td style="padding: 1.1rem 1.25rem; color: #f8fafc; font-weight: 600;">
+                      <td style="padding: 1.1rem 1.25rem; color: var(--text-main); font-weight: 600;">
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
-                          <i data-lucide="${isReport ? 'file-check' : (isIngest ? 'file-text' : 'shield-check')}" style="width: 15px; height: 15px; color: ${isReport ? '#f59e0b' : '#60a5fa'};"></i>
+                          <i data-lucide="${isReport ? 'file-check' : (isIngest ? 'file-text' : 'shield-check')}" style="width: 15px; height: 15px; color: ${isReport ? '#f59e0b' : '#2563eb'};"></i>
                           <span>${itemLabel}</span>
                         </div>
                       </td>
                       <td style="padding: 1.1rem 1.25rem; font-family: monospace; font-size: 0.75rem;">${hashDisplay}</td>
-                      <td style="padding: 1.1rem 1.25rem; color: #cbd5e1; font-size: 0.8rem;">admin <span style="color: #64748b;">(Investigator)</span></td>
+                      <td style="padding: 1.1rem 1.25rem; color: var(--text-secondary); font-size: 0.8rem;">admin <span style="color: var(--text-muted);">(Investigator)</span></td>
                       <td style="padding: 1.1rem 1.25rem;"><span class="badge success" style="font-size: 0.7rem;">✓ VERIFIED</span></td>
                     </tr>
                     `;
@@ -231,8 +205,8 @@ export function setupEvidence() {
                 } else {
                     let options = allCases.map(c => `<option value="${c.id}" ${c.id == currentCaseId ? 'selected' : ''}>${c.case_number} - ${c.name}</option>`).join('');
                     caseSelectorContainer.innerHTML = `
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Select Case</label>
-                        <select id="upload-case-id" required style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 0.5rem; outline: none;">
+                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">Select Case</label>
+                        <select id="upload-case-id" required style="width: 100%; padding: 0.75rem;">
                             ${options}
                         </select>
                     `;

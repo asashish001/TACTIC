@@ -18,7 +18,12 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.auth.security import RoleChecker, get_current_user, require_case_access
+from app.auth.security import (
+    RoleChecker,
+    decode_token,
+    get_current_user,
+    require_case_access,
+)
 from app.config import RATE_LIMIT_READ, RATE_LIMIT_UPLOAD, limiter
 from app.database.session import get_db
 from app.models.case import Case
@@ -264,12 +269,49 @@ def list_evidence(request: Request,
     )
 
 
+def get_user_for_evidence_access(
+    request: Request,
+    token: str | None = None,
+    db: Session = Depends(get_db),
+) -> User:
+    auth_header = request.headers.get("Authorization")
+    token_str = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token_str = auth_header[7:].strip()
+    elif token:
+        token_str = token
+
+    if not token_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        payload = decode_token(token_str, expected_type="access")
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired authentication token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = db.query(User).filter(User.id == payload.get("user_id")).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
 @router.get("/download/{evidence_id}")
 @limiter.limit(RATE_LIMIT_READ)
 def download_evidence(request: Request,
     evidence_id: int,
+    token: str | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_user_for_evidence_access)
 ):
     """Download an evidence file with authentication and case access verification."""
     from fastapi.responses import FileResponse
@@ -303,4 +345,125 @@ def download_evidence(request: Request,
         path=file_path,
         media_type="application/octet-stream",
         filename=evidence.filename,
+    )
+
+
+@router.get("/{evidence_id}/raw")
+@limiter.limit(RATE_LIMIT_READ)
+def get_raw_evidence(
+    request: Request,
+    evidence_id: int,
+    token: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_user_for_evidence_access)
+):
+    """Retrieve raw evidence payload and metadata for the in-app raw file popup."""
+    evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    if not evidence:
+        raise HTTPException(status_code=404, detail="Evidence not found.")
+
+    case = db.query(Case).filter(Case.id == evidence.case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    require_case_access(case, current_user)
+
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    file_path = (base_dir / "app" / "uploads" / evidence.stored_path).resolve()
+
+    uploads_root = (base_dir / "app" / "uploads").resolve()
+    if uploads_root not in file_path.parents or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Evidence file could not be located on disk.")
+
+    ext = (evidence.extension or "").lower().lstrip(".")
+    mime = (evidence.detected_mime or "").lower()
+
+    image_exts = {"png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico"}
+    is_image = ext in image_exts or mime.startswith("image/")
+    is_pdf = ext == "pdf" or mime == "application/pdf"
+
+    max_preview_bytes = 2 * 1024 * 1024  # 2 MB preview limit for text
+    file_size = file_path.stat().st_size
+    is_truncated = file_size > max_preview_bytes
+
+    content = None
+    hex_dump = None
+    is_text = False
+
+    try:
+        with open(file_path, "rb") as f:
+            chunk = f.read(max_preview_bytes)
+
+        if not is_image and not is_pdf:
+            if b"\x00" in chunk[:4096]:
+                is_text = False
+                hex_lines = []
+                preview_chunk = chunk[:1024]
+                for offset in range(0, len(preview_chunk), 16):
+                    line_chunk = preview_chunk[offset:offset+16]
+                    hex_part = " ".join(f"{b:02x}" for b in line_chunk)
+                    ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in line_chunk)
+                    hex_lines.append(f"{offset:08x}  {hex_part:<48}  |{ascii_part}|")
+                hex_dump = "\n".join(hex_lines)
+            else:
+                is_text = True
+                content = chunk.decode("utf-8", errors="replace")
+    except Exception as e:
+        logger.error(f"Error reading raw evidence {evidence_id}: {e}")
+
+    return {
+        "id": evidence.id,
+        "filename": evidence.filename,
+        "file_size": file_size,
+        "extension": evidence.extension,
+        "detected_mime": evidence.detected_mime,
+        "sha256": evidence.sha256,
+        "md5": evidence.md5,
+        "sha1": evidence.sha1,
+        "ingested_at": evidence.ingested_at.isoformat() if evidence.ingested_at else None,
+        "integrity_status": evidence.integrity_status,
+        "preservation_status": evidence.preservation_status,
+        "is_text": is_text,
+        "is_image": is_image,
+        "is_pdf": is_pdf,
+        "content": content,
+        "hex_dump": hex_dump,
+        "truncated": is_truncated,
+        "total_lines": (content.count("\n") + 1) if content is not None else 0,
+    }
+
+
+@router.get("/{evidence_id}/view")
+@limiter.limit(RATE_LIMIT_READ)
+def view_raw_evidence_file(
+    request: Request,
+    evidence_id: int,
+    token: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_user_for_evidence_access)
+):
+    """Serve evidence file inline with proper content-type for in-app raw view."""
+    from fastapi.responses import FileResponse
+
+    evidence = db.query(Evidence).filter(Evidence.id == evidence_id).first()
+    if not evidence:
+        raise HTTPException(status_code=404, detail="Evidence not found.")
+
+    case = db.query(Case).filter(Case.id == evidence.case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    require_case_access(case, current_user)
+
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    file_path = (base_dir / "app" / "uploads" / evidence.stored_path).resolve()
+
+    uploads_root = (base_dir / "app" / "uploads").resolve()
+    if uploads_root not in file_path.parents or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Evidence file could not be located on disk.")
+
+    media_type = evidence.detected_mime or "application/octet-stream"
+    return FileResponse(
+        path=file_path,
+        media_type=media_type,
+        filename=evidence.filename,
+        content_disposition_type="inline"
     )

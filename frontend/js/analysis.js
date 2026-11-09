@@ -128,28 +128,28 @@ export function setupAnalysis() {
           content.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
               <div>
-                <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Title</div>
-                <div style="font-size: 1.1rem; font-weight: 600; color: white;">${f.title}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Title</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-main);">${f.title}</div>
               </div>
               ${f.confidence ? `<div style="text-align: right; padding-left: 1rem;">
-                <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">AI Confidence</div>
-                <div style="font-size: 1.5rem; font-weight: 700; color: ${f.confidence >= 0.8 ? '#ef4444' : f.confidence >= 0.5 ? '#f59e0b' : '#3b82f6'};">${Math.round(f.confidence * 100)}%</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">AI Confidence</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: ${f.confidence >= 0.8 ? '#ef4444' : f.confidence >= 0.5 ? '#f59e0b' : '#2563eb'};">${Math.round(f.confidence * 100)}%</div>
               </div>` : ''}
             </div>
             <div>
-              <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Description & Reasoning</div>
-              <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; line-height: 1.5; border: 1px solid rgba(255,255,255,0.05);">
-                <p style="margin-bottom: 0.5rem; color: #38bdf8; font-weight: 600;">Evidence Source: ${f.evidence_filename || 'Unknown Source'}</p>
-                <p style="margin-bottom: 0.5rem;">${f.description || ''}</p>
-                <p style="color: #94a3b8;">${f.reason || ''}</p>
+              <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Description & Reasoning</div>
+              <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem; line-height: 1.5; border: 1px solid var(--border-color);">
+                <p style="margin-bottom: 0.5rem; color: var(--accent); font-weight: 600;">Evidence Source: ${f.evidence_filename || 'Unknown Source'}</p>
+                <p style="margin-bottom: 0.5rem; color: var(--text-main);">${f.description || ''}</p>
+                <p style="color: var(--text-muted);">${f.reason || ''}</p>
               </div>
             </div>
             <div>
-              <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Recommendation</div>
-              <div style="color: #cbd5e1; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; line-height: 1.5;">${f.recommendation || 'No specific recommendation provided.'}</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Recommendation</div>
+              <div style="color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 3px solid #16a34a; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; line-height: 1.5;">${f.recommendation || 'No specific recommendation provided.'}</div>
             </div>
             <div>
-              <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Technical Details</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Technical Details</div>
               ${detailsHtml}
             </div>
           `;

@@ -86,7 +86,7 @@ export function setupCases() {
                       <span>Incident Date: ${c.incident_date}</span>
                     </div>
                   </div>
-                  <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end;">
+                  <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">
                     <button class="btn btn-secondary btn-open-case" data-id="${c.id}" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Open Case</button>
                   </div>
                 `;

@@ -59,10 +59,26 @@ fastapi_app.add_middleware(
 )
 
 
+import mimetypes
+
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Add standard security headers to every response."""
+    """Add standard security headers and ensure correct asset MIME types."""
     async def dispatch(self, request: StarletteRequest, call_next):
         response: Response = await call_next(request)
+        path = request.url.path.lower()
+        if path.endswith(".js"):
+            response.headers["Content-Type"] = "application/javascript; charset=utf-8"
+        elif path.endswith(".css"):
+            response.headers["Content-Type"] = "text/css; charset=utf-8"
+
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -70,10 +86,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data:; "
+            "img-src 'self' data: blob:; "
             "connect-src 'self'; "
             "frame-src 'self' blob:; "
             "frame-ancestors 'self'"

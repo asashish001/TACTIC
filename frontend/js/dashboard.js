@@ -92,7 +92,7 @@ export function setupDashboard() {
               let detailsHtml = '';
               try {
                 const parsedDetails = typeof alert.details === 'string' ? JSON.parse(alert.details) : alert.details;
-                detailsHtml = `<pre style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; overflow-y: auto; max-height: 300px; font-size: 0.85rem;">${JSON.stringify(parsedDetails, null, 2)}</pre>`;
+                detailsHtml = `<pre style="background: #f8fafc; border: 1px solid var(--border-color); color: var(--text-main); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; overflow-y: auto; max-height: 300px; font-size: 0.85rem;">${JSON.stringify(parsedDetails, null, 2)}</pre>`;
               } catch (e) {
                 detailsHtml = `<div>${alert.details || 'None'}</div>`;
               }
@@ -100,28 +100,28 @@ export function setupDashboard() {
               content.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                   <div>
-                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Title</div>
-                    <div style="font-size: 1.1rem; font-weight: 600; color: white;">${alert.title || alert.description}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Title</div>
+                    <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-main);">${alert.title || alert.description}</div>
                   </div>
                   ${alert.confidence ? `<div style="text-align: right; padding-left: 1rem;">
-                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">AI Confidence</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: ${alert.confidence >= 0.8 ? '#ef4444' : alert.confidence >= 0.5 ? '#f59e0b' : '#3b82f6'};">${Math.round(alert.confidence * 100)}%</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">AI Confidence</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: ${alert.confidence >= 0.8 ? '#ef4444' : alert.confidence >= 0.5 ? '#f59e0b' : '#2563eb'};">${Math.round(alert.confidence * 100)}%</div>
                   </div>` : ''}
                 </div>
                 <div>
-                  <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Description & Reasoning</div>
-                  <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; line-height: 1.5; border: 1px solid rgba(255,255,255,0.05);">
-                    <p style="margin-bottom: 0.5rem; color: #38bdf8; font-weight: 600;">Evidence Source: ${alert.evidence_filename || 'Unknown Source'}</p>
-                    <p style="margin-bottom: 0.5rem;">${alert.full_description || alert.description || ''}</p>
-                    <p style="color: #94a3b8;">${alert.reason || ''}</p>
+                  <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Description & Reasoning</div>
+                  <div style="background: #f8fafc; padding: 1rem; border-radius: 0.5rem; line-height: 1.5; border: 1px solid var(--border-color);">
+                    <p style="margin-bottom: 0.5rem; color: var(--accent); font-weight: 600;">Evidence Source: ${alert.evidence_filename || 'Unknown Source'}</p>
+                    <p style="margin-bottom: 0.5rem; color: var(--text-main);">${alert.full_description || alert.description || ''}</p>
+                    <p style="color: var(--text-muted);">${alert.reason || ''}</p>
                   </div>
                 </div>
                 <div>
-                  <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Recommendation</div>
-                  <div style="color: #cbd5e1; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; line-height: 1.5;">${alert.recommendation || 'No specific recommendation provided.'}</div>
+                  <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Recommendation</div>
+                  <div style="color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 3px solid #16a34a; padding: 1rem; border-radius: 0 0.5rem 0.5rem 0; line-height: 1.5;">${alert.recommendation || 'No specific recommendation provided.'}</div>
                 </div>
                 <div>
-                  <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Technical Details</div>
+                  <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Technical Details</div>
                   ${detailsHtml}
                 </div>
               `;
@@ -149,10 +149,15 @@ export function setupDashboard() {
           return;
         }
         try {
-          Chart.defaults.color = '#94a3b8';
-          Chart.defaults.font.family = "'Inter', sans-serif";
+          Chart.defaults.color = '#0f172a';
+          Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+          Chart.defaults.font.weight = '600';
 
-          if (!window.timelineChartInst && document.getElementById('timelineChart')) {
+          if (window.timelineChartInst) {
+            window.timelineChartInst.destroy();
+            window.timelineChartInst = null;
+          }
+          if (document.getElementById('timelineChart')) {
             const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
             window.timelineChartInst = new Chart(ctxTimeline, {
               type: 'bar',
@@ -161,9 +166,9 @@ export function setupDashboard() {
                 datasets: [{
                   label: 'Events Logged',
                   data: data.charts?.timeline?.data || [0, 0, 0, 0, 0, 0, 0],
-                  backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                  borderColor: 'rgba(59, 130, 246, 1)',
-                  borderWidth: 1,
+                  backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                  borderColor: '#1d4ed8',
+                  borderWidth: 1.5,
                   borderRadius: 4
                 }]
               },
@@ -171,8 +176,21 @@ export function setupDashboard() {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                  y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
-                  x: { grid: { display: false } }
+                  y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(15, 23, 42, 0.08)' },
+                    ticks: {
+                      color: '#0f172a',
+                      font: { family: "'Inter', sans-serif", size: 12, weight: '700' }
+                    }
+                  },
+                  x: { 
+                    grid: { display: false },
+                    ticks: {
+                      color: '#0f172a',
+                      font: { family: "'Inter', sans-serif", size: 12, weight: '700' }
+                    }
+                  }
                 },
                 plugins: { legend: { display: false } },
                 onClick: (e, elements) => {
@@ -192,23 +210,22 @@ export function setupDashboard() {
                 }
               }
             });
-          } else if (window.timelineChartInst) {
-            window.timelineChartInst.data.labels = data.charts?.timeline?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            window.timelineChartInst.data.datasets[0].data = data.charts?.timeline?.data || [0, 0, 0, 0, 0, 0, 0];
-            window.timelineChartInst.update();
           }
 
-          if (!window.evidenceChartInst && document.getElementById('evidenceChart')) {
+          if (window.evidenceChartInst) {
+            window.evidenceChartInst.destroy();
+            window.evidenceChartInst = null;
+          }
+          if (document.getElementById('evidenceChart')) {
             const ctxEvidence = document.getElementById('evidenceChart').getContext('2d');
             
-            // Generate enough colors for the dynamic labels
             const baseColors = [
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(16, 185, 129, 0.8)',
-              'rgba(245, 158, 11, 0.8)',
-              'rgba(239, 68, 68, 0.8)',
-              'rgba(14, 165, 233, 0.8)'
+              'rgba(37, 99, 235, 0.85)',
+              'rgba(124, 58, 237, 0.85)',
+              'rgba(16, 185, 129, 0.85)',
+              'rgba(245, 158, 11, 0.85)',
+              'rgba(239, 68, 68, 0.85)',
+              'rgba(14, 165, 233, 0.85)'
             ];
             const labels = data.charts?.evidence?.labels || ['No Data'];
             const chartData = data.charts?.evidence?.data || [1];
@@ -221,7 +238,7 @@ export function setupDashboard() {
                 datasets: [{
                   data: chartData,
                   backgroundColor: bgColors,
-                  borderColor: '#0f172a',
+                  borderColor: '#ffffff',
                   borderWidth: 2,
                   hoverOffset: 4
                 }]
@@ -230,7 +247,17 @@ export function setupDashboard() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                  legend: { position: 'right', labels: { color: '#e2e8f0', padding: 20 } }
+                  legend: { 
+                    position: 'right', 
+                    labels: { 
+                      color: '#0f172a', 
+                      font: { family: "'Inter', sans-serif", size: 13, weight: '700' },
+                      padding: 16,
+                      usePointStyle: true,
+                      boxWidth: 12,
+                      boxHeight: 12
+                    } 
+                  }
                 },
                 cutout: '70%',
                 onClick: (e, elements) => {
@@ -250,19 +277,6 @@ export function setupDashboard() {
                 }
               }
             });
-          } else if (window.evidenceChartInst) {
-            const baseColors = [
-              'rgba(59, 130, 246, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(16, 185, 129, 0.8)',
-              'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(14, 165, 233, 0.8)'
-            ];
-            const labels = data.charts?.evidence?.labels || ['No Data'];
-            const chartData = data.charts?.evidence?.data || [1];
-            const bgColors = labels.map((_, i) => baseColors[i % baseColors.length]);
-            
-            window.evidenceChartInst.data.labels = labels;
-            window.evidenceChartInst.data.datasets[0].data = chartData;
-            window.evidenceChartInst.data.datasets[0].backgroundColor = bgColors;
-            window.evidenceChartInst.update();
           }
         } catch (err) {
           const tC = document.getElementById('timelineChart');

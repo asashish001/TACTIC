@@ -52,10 +52,10 @@ export function setupTables() {
           input.style.width = '100%';
           input.style.padding = '0.25rem 0.5rem';
           input.style.fontSize = '0.75rem';
-          input.style.background = 'rgba(0,0,0,0.2)';
+          input.style.background = '#ffffff';
           input.style.color = 'var(--text-main)';
-          input.style.border = '1px solid rgba(255,255,255,0.1)';
-          input.style.borderRadius = '0.25rem';
+          input.style.border = '1px solid var(--border-color)';
+          input.style.borderRadius = '0.35rem';
           input.style.outline = 'none';
           
           input.addEventListener('input', filterTable);

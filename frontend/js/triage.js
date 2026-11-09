@@ -72,40 +72,40 @@ function renderCurrentCard() {
     let detailsHtml = '';
     try {
         const parsedDetails = typeof finding.details === 'string' ? JSON.parse(finding.details) : finding.details;
-        detailsHtml = `<pre style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; max-height: 150px; font-size: 0.85rem;">${JSON.stringify(parsedDetails, null, 2)}</pre>`;
+        detailsHtml = `<pre style="background: #f8fafc; border: 1px solid var(--border-color); color: var(--text-main); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; max-height: 150px; font-size: 0.85rem;">${JSON.stringify(parsedDetails, null, 2)}</pre>`;
     } catch (e) {
         detailsHtml = `<p>${finding.details || 'None'}</p>`;
     }
 
     container.innerHTML = `
-        <div id="triage-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 1rem; width: 100%; max-width: 650px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative;">
+        <div id="triage-card" style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 1rem; width: 100%; max-width: 650px; padding: 2rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
                 <div>
-                    <span style="background: ${badgeColor}22; color: ${badgeColor}; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; border: 1px solid ${badgeColor}55;">${finding.severity}</span>
-                    <h2 style="font-size: 1.5rem; margin-top: 1rem; color: white;">${finding.title}</h2>
+                    <span style="background: ${badgeColor}18; color: ${badgeColor}; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; border: 1px solid ${badgeColor}40;">${finding.severity}</span>
+                    <h2 style="font-size: 1.5rem; margin-top: 1rem; color: var(--text-main);">${finding.title}</h2>
                 </div>
                 ${finding.confidence ? `
                 <div style="text-align: right;">
-                    <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Confidence</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Confidence</div>
                     <div style="font-size: 1.75rem; font-weight: 700; color: ${finding.confidence >= 0.8 ? '#ef4444' : '#f59e0b'};">${Math.round(finding.confidence * 100)}%</div>
                 </div>` : ''}
             </div>
             
-            <div style="margin-bottom: 1.5rem; color: #cbd5e1; line-height: 1.6;">
-                <p style="margin-bottom: 1rem;"><strong>Source:</strong> <span style="color: #38bdf8;">${finding.evidence_filename || 'Unknown'}</span></p>
-                <p style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem;">${finding.description}</p>
+            <div style="margin-bottom: 1.5rem; color: var(--text-secondary); line-height: 1.6;">
+                <p style="margin-bottom: 1rem;"><strong>Source:</strong> <span style="color: var(--accent); font-weight: 600;">${finding.evidence_filename || 'Unknown'}</span></p>
+                <p style="background: #f8fafc; border: 1px solid var(--border-color); padding: 1rem; border-radius: 0.5rem; color: var(--text-main);">${finding.description}</p>
             </div>
             
             <div style="margin-bottom: 2rem;">
-                <h4 style="color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;">Technical Details</h4>
+                <h4 style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;">Technical Details</h4>
                 ${detailsHtml}
             </div>
             
             <div style="display: flex; gap: 1rem; justify-content: space-between; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
-                <button id="btn-reject" style="flex: 1; padding: 1rem; border-radius: 0.75rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s;">
+                <button id="btn-reject" style="flex: 1; padding: 0.85rem; border-radius: 0.5rem; background: #fee2e2; border: 1px solid #fecaca; color: #b91c1c; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s;">
                     <i data-lucide="x-circle" style="width: 20px; height: 20px;"></i> Reject
                 </button>
-                <button id="btn-approve" style="flex: 1; padding: 1rem; border-radius: 0.75rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s;">
+                <button id="btn-approve" style="flex: 1; padding: 0.85rem; border-radius: 0.5rem; background: #dcfce7; border: 1px solid #bbf7d0; color: #15803d; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s;">
                     <i data-lucide="check-circle" style="width: 20px; height: 20px;"></i> Approve
                 </button>
             </div>
