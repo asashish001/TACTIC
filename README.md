@@ -1,6 +1,44 @@
 # T.A.C.T.I.C. — AI Digital Forensics Assistant
 
-An enterprise-grade, AI-powered digital forensics investigation platform built for security analysts, incident responders, and forensic investigators. T.A.C.T.I.C. automates evidence ingestion, cryptographic hashing, entity extraction, anomaly detection, entity correlation, attack timeline reconstruction, human-in-the-loop finding review, and audit report generation.
+<p align="center">
+  <img src="docs/images/banner.png" alt="T.A.C.T.I.C. Banner" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://www.youtube.com">
+    <img src="https://img.shields.io/badge/YouTube-Watch%20Demo%20Walkthrough-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo Video" />
+  </a>
+  <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python Version" />
+  <img src="https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Hugging%20Face-Transformers-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Hugging Face" />
+  <img src="https://img.shields.io/badge/Security-DFIR%20%26%20Incident%20Response-red?style=for-the-badge&logo=shield" alt="DFIR" />
+</p>
+
+An enterprise-grade, AI-powered digital forensics investigation platform built for security analysts, incident responders, and forensic investigators. T.A.C.T.I.C. (**Trace Analysis and Cyber Timeline Investigation Core**) automates evidence ingestion, cryptographic hashing, entity extraction, anomaly detection, entity correlation, attack timeline reconstruction, human-in-the-loop finding review, and audit report generation.
+
+---
+
+## 📺 Video Walkthrough & Live Demo
+
+Watch the comprehensive Full HD walkthrough demonstrating an end-to-end investigation of an active threat scenario (*Operation Phantom Strike*):
+
+<p align="center">
+  <a href="https://www.youtube.com">
+    <img src="docs/images/banner.png" alt="Click to Watch Walkthrough" width="85%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,240,255,0.2);" />
+  </a>
+</p>
+
+### ⏱️ Video Chapters & Investigation Progression:
+- **`00:00`** — **Introduction & Authentication**: Secure investigator login with role-based access control (RBAC).
+- **`00:17`** — **Case Selection & Workspace Activation**: Isolating multi-tenant case environments and activating *Operation Phantom Strike*.
+- **`00:33`** — **Cyber-HUD Forensic Dashboard**: Real-time telemetry, active threat counters, and attack timeline distributions.
+- **`00:52`** — **Evidence Locker & Cryptographic Triad**: Immutable chain of custody verifying MD5, SHA-1, and SHA-256 checksums.
+- **`01:12`** — **8-Stage Pipeline & AI Entity Extraction**: Transformer-based NER extracting 13 forensic entity types.
+- **`01:27`** — **Unified UTC Chronological Timeline**: Cross-log temporal normalization from initial access to exfiltration.
+- **`01:44`** — **Cytoscape Entity Threat Graph**: Multi-factor relationship mapping and C2 infrastructure cluster discovery.
+- **`02:01`** — **Human-in-the-Loop AI Triage Queue**: Explainable AI recommendations with mandatory investigator sign-off.
+- **`02:17`** — **Grounded AI Forensic Assistant**: Zero-hallucination semantic question answering over case artifacts.
+- **`02:32`** — **Automated Audit Reports & Outro**: Single-click court-admissible PDF and DOCX export.
 
 ---
 
