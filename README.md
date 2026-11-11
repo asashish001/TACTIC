@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.youtube.com">
+  <a href="https://youtu.be/o-MEOHJEbaw">
     <img src="https://img.shields.io/badge/YouTube-Watch%20Demo%20Walkthrough-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Demo Video" />
   </a>
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python Version" />
@@ -23,7 +23,7 @@ An enterprise-grade, AI-powered digital forensics investigation platform built f
 Watch the comprehensive Full HD walkthrough demonstrating an end-to-end investigation of an active threat scenario (*Operation Phantom Strike*):
 
 <p align="center">
-  <a href="https://www.youtube.com">
+  <a href="https://youtu.be/o-MEOHJEbaw">
     <img src="docs/images/banner.png" alt="Click to Watch Walkthrough" width="85%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,240,255,0.2);" />
   </a>
 </p>

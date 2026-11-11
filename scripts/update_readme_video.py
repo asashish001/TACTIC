@@ -41,3 +41,4 @@ if __name__ == "__main__":
         print("Usage: python scripts/update_readme_video.py <YOUTUBE_URL>")
         sys.exit(1)
     update_youtube_url(sys.argv[1].strip())
+
